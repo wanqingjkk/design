@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>设计月度规划</title>
+    <link rel="icon" href="./favicon.ico" sizes="any" />
+    <link rel="icon" href="./favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="menu-collapsed theme-fresh">
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="计划设置">
+        <button class="sidebar-toggle" id="sidebarToggle" type="button" aria-expanded="false" title="展开设置">
+          <span class="toggle-icon">☰</span>
+          <span class="toggle-label">设置</span>
+        </button>
+
+        <div class="brand">
+          <p class="eyebrow">2026</p>
+          <h1>设计月度规划</h1>
+          <p class="access-note" id="accessNote"></p>
+          <p>按月份填写每天任务，数据会自动保存在当前浏览器。</p>
+        </div>
+
+        <section class="panel month-panel" aria-label="月份选择">
+          <div class="panel-title">
+            <span>月份</span>
+            <button class="icon-button" id="todayButton" type="button" title="回到当前月份">今</button>
+          </div>
+          <div class="month-grid" id="monthGrid"></div>
+        </section>
+
+        <section class="panel" aria-label="项目库">
+          <div class="panel-title">
+            <span>项目库</span>
+          </div>
+          <div class="project-list" id="projectList"></div>
+          <form class="project-form" id="projectForm">
+            <input id="projectNameInput" type="text" placeholder="新增项目名称" autocomplete="off" />
+            <input id="projectColorInput" type="color" value="#70d900" title="选择项目颜色" />
+            <button type="submit">添加</button>
+          </form>
+        </section>
+
+        <section class="panel compact-actions" aria-label="数据操作">
+          <select class="data-action-select" id="dataActionSelect" aria-label="选择数据操作">
+            <option value="">数据操作</option>
+            <option value="export-data">导出数据</option>
+            <option value="export-html">导出HTML</option>
+            <option value="export-image">导出图片</option>
+            <option value="export-package">导出最新整包</option>
+            <option value="copy-excel">复制到Excel</option>
+            <option value="import-data">导入数据</option>
+          </select>
+          <div class="data-action-targets" hidden>
+            <button type="button" id="exportButton">导出数据</button>
+            <button type="button" id="exportHtmlButton">导出HTML</button>
+            <button type="button" id="exportImageButton">导出图片</button>
+            <button type="button" id="exportPackageButton">导出最新整包</button>
+            <button type="button" id="copyExcelButton">复制到Excel</button>
+          </div>
+          <input type="file" id="importInput" accept="application/json" hidden />
+        </section>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <h2 id="monthTitle">8 月</h2>
+          </div>
+          <div class="month-controls" aria-label="月份切换">
+            <button type="button" id="prevMonth">上一月</button>
+            <button type="button" id="nextMonth">下一月</button>
+          </div>
+          <div class="topbar-tools" aria-label="批量选择">
+            <button type="button" id="batchToggle">多选</button>
+            <button type="button" id="clearSelectionButton">清空选中</button>
+          </div>
+        </header>
+
+        <section class="calendar-card" aria-label="月度日历">
+          <div class="weekday-row" aria-hidden="true">
+            <span>星期一</span>
+            <span>星期二</span>
+            <span>星期三</span>
+            <span>星期四</span>
+            <span>星期五</span>
+            <span>星期六</span>
+            <span>星期日</span>
+          </div>
+          <div class="calendar-grid" id="calendarGrid"></div>
+        </section>
+      </main>
+
+      <aside class="editor" aria-label="当天任务编辑">
+        <div class="editor-header">
+          <div>
+            <p class="eyebrow">Selected Day</p>
+            <h2 id="selectedDateTitle">选择一天</h2>
+          </div>
+          <button class="icon-button" id="closeEditor" type="button" title="关闭编辑区">×</button>
+        </div>
+
+        <div class="day-summary" id="daySummary">点击日历中的日期后，在这里填写当天任务。</div>
+
+        <form class="task-form" id="taskForm">
+          <label for="taskInput">任务</label>
+          <div class="task-input-row">
+            <input id="taskInput" type="text" list="projectSuggestions" placeholder="例如 Deepclaw / 官网 / 请假" autocomplete="off" />
+            <button type="submit">添加</button>
+          </div>
+          <datalist id="projectSuggestions"></datalist>
+        </form>
+
+        <div class="task-list" id="taskList"></div>
+
+        <div class="editor-actions">
+          <button type="button" id="clearDayButton">清空当天</button>
+        </div>
+      </aside>
+    </div>
+
+    <dialog class="viewer-dialog" id="viewerDialog" aria-labelledby="viewerDialogTitle">
+      <div class="viewer-dialog-header">
+        <div>
+          <p class="viewer-dialog-kicker">今日任务</p>
+          <h2 id="viewerDialogTitle">当天任务</h2>
+        </div>
+        <button class="icon-button" id="viewerDialogClose" type="button" aria-label="关闭任务弹窗" title="关闭">×</button>
+      </div>
+      <div class="viewer-dialog-content">
+        <img
+          class="viewer-dialog-illustration"
+          src="./today-card-background.png"
+          alt="命只有一条，但要命的事不止一件，工作叠加插图"
+        />
+        <div class="viewer-dialog-details">
+          <p class="viewer-dialog-summary" id="viewerDialogSummary"></p>
+          <div class="viewer-dialog-list" id="viewerDialogList"></div>
+        </div>
+      </div>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script src="./design-calendar-data.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
