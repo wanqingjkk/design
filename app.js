@@ -6,6 +6,9 @@ const VIEW_KEY = "design-calendar-view-v1";
 const EMBEDDED_SNAPSHOT_KEY = "__DESIGN_CALENDAR_SNAPSHOT__";
 const PALETTE_VERSION = 3;
 const DEFAULT_THEME = "fresh";
+const QUEUE_LOCAL_KEY = "design-calendar-queue-v1";
+const QUEUE_CONFIG = window.__DESIGN_CALENDAR_QUEUE_CONFIG__ || {};
+const QUEUE_COLOR = "#eadfce";
 const CAN_EDIT = false;
 const IS_EDITORIAL_PREVIEW = true;
 
@@ -181,6 +184,9 @@ let selected = view.selected;
 let batchMode = Boolean(view.batchMode);
 let selectedDays = normalizeSelectedDays(view.selectedDays, selected);
 let selectionAnchor = selectedDays[0] || selected.day;
+let queueTickets = [];
+let queueLoading = true;
+let queueError = "";
 
 const monthGrid = document.getElementById("monthGrid");
 const calendarGrid = document.getElementById("calendarGrid");
@@ -212,6 +218,15 @@ const viewerDialogTitle = document.getElementById("viewerDialogTitle");
 const viewerDialogSummary = document.getElementById("viewerDialogSummary");
 const viewerDialogList = document.getElementById("viewerDialogList");
 const viewerDialogClose = document.getElementById("viewerDialogClose");
+const queueOpenButton = document.getElementById("queueOpenButton");
+const queueDialog = document.getElementById("queueDialog");
+const queueDialogClose = document.getElementById("queueDialogClose");
+const queueForm = document.getElementById("queueForm");
+const queueRequesterInput = document.getElementById("queueRequesterInput");
+const queueTaskInput = document.getElementById("queueTaskInput");
+const queueSubmitButton = document.getElementById("queueSubmitButton");
+const queueSlotDate = document.getElementById("queueSlotDate");
+const queueFormStatus = document.getElementById("queueFormStatus");
 
 function loadState() {
   const saved = CAN_EDIT ? localStorage.getItem(STORAGE_KEY) : null;
@@ -363,8 +378,56 @@ function getMonthData(month) {
   return state.plans[key];
 }
 
-function getTasks(month, day) {
+function getPlannedTasks(month, day) {
   return getMonthData(month)[String(day)] || [];
+}
+
+function formatDateKey(date) {
+  return [date.getFullYear(), padMonth(date.getMonth() + 1), String(date.getDate()).padStart(2, "0")].join("-");
+}
+
+function queueDateKey(month, day) {
+  return `${YEAR}-${padMonth(month)}-${String(day).padStart(2, "0")}`;
+}
+
+function normalizeQueueTicket(ticket) {
+  return {
+    id: String(ticket.id || ""),
+    ticketNo: String(ticket.ticket_no || ticket.ticketNo || ""),
+    requester: String(ticket.requester || ""),
+    taskName: String(ticket.task_name || ticket.taskName || ""),
+    scheduledDate: String(ticket.scheduled_date || ticket.scheduledDate || ""),
+    status: String(ticket.status || "scheduled"),
+    createdAt: String(ticket.created_at || ticket.createdAt || "")
+  };
+}
+
+function getQueueTicketsForDay(month, day) {
+  const key = queueDateKey(month, day);
+  return queueTickets.filter((ticket) => ticket.scheduledDate === key && ticket.status !== "cancelled");
+}
+
+function queueTicketLabel(ticket) {
+  return `取号 ${ticket.ticketNo}｜${ticket.taskName}`;
+}
+
+function getCalendarItems(month, day) {
+  const planned = getPlannedTasks(month, day).map((task) => ({
+    type: "task",
+    label: task,
+    color: getProjectColor(task)
+  }));
+  const queued = getQueueTicketsForDay(month, day).map((ticket) => ({
+    type: "queue",
+    label: queueTicketLabel(ticket),
+    color: QUEUE_COLOR,
+    ticket
+  }));
+  return [...planned, ...queued];
+}
+
+function getDisplayTasks(month, day) {
+  return getCalendarItems(month, day).map((item) => item.label);
 }
 
 function setTasks(month, day, tasks) {
@@ -385,7 +448,13 @@ function getProjectColor(name) {
 }
 
 function monthTaskCount(month) {
-  return Object.values(getMonthData(month)).reduce((sum, list) => sum + list.length, 0);
+  const planned = Object.values(getMonthData(month)).reduce((sum, list) => sum + list.length, 0);
+  const queued = queueTickets.filter((ticket) => {
+    if (ticket.status === "cancelled") return false;
+    const [year, ticketMonth] = ticket.scheduledDate.split("-").map(Number);
+    return year === YEAR && ticketMonth === month;
+  }).length;
+  return planned + queued;
 }
 
 function getSelectedDays() {
@@ -457,6 +526,189 @@ function buildCalendarDays(month) {
   return cells;
 }
 
+function queueRemoteEnabled() {
+  return Boolean(String(QUEUE_CONFIG.supabaseUrl || "").trim() && String(QUEUE_CONFIG.supabaseAnonKey || "").trim());
+}
+
+function queueApiUrl() {
+  return `${String(QUEUE_CONFIG.supabaseUrl || "").replace(/\/$/, "")}/rest/v1/queue_tickets`;
+}
+
+function queueApiHeaders(extra = {}) {
+  const key = String(QUEUE_CONFIG.supabaseAnonKey || "").trim();
+  return {
+    apikey: key,
+    Authorization: `Bearer ${key}`,
+    ...extra
+  };
+}
+
+function loadLocalQueueTickets() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(QUEUE_LOCAL_KEY) || "[]");
+    return Array.isArray(saved) ? saved.map(normalizeQueueTicket) : [];
+  } catch (error) {
+    console.warn("Local queue data could not be parsed", error);
+    return [];
+  }
+}
+
+function saveLocalQueueTickets() {
+  localStorage.setItem(QUEUE_LOCAL_KEY, JSON.stringify(queueTickets));
+}
+
+async function loadQueueTickets({ rerender = true } = {}) {
+  queueLoading = true;
+  queueError = "";
+  if (rerender) renderQueueAvailability();
+
+  try {
+    if (queueRemoteEnabled()) {
+      const url = `${queueApiUrl()}?select=id,ticket_no,requester,task_name,scheduled_date,status,created_at&order=scheduled_date.asc,created_at.asc`;
+      const response = await fetch(url, {
+        headers: queueApiHeaders(),
+        cache: "no-store"
+      });
+      if (!response.ok) throw new Error(`queue fetch failed: ${response.status}`);
+      const rows = await response.json();
+      queueTickets = Array.isArray(rows) ? rows.map(normalizeQueueTicket) : [];
+    } else if (CAN_EDIT) {
+      queueTickets = loadLocalQueueTickets();
+    } else {
+      queueTickets = [];
+      queueError = "在线取号服务尚未连接";
+    }
+  } catch (error) {
+    console.error(error);
+    queueError = "暂时无法读取排队信息，请稍后重试";
+  } finally {
+    queueLoading = false;
+    if (rerender) renderAll();
+  }
+}
+
+function findNextAvailableDate() {
+  const now = new Date();
+  if (now.getFullYear() > YEAR) return null;
+  const candidate = now.getFullYear() < YEAR
+    ? new Date(YEAR, 0, 1)
+    : new Date(YEAR, now.getMonth(), now.getDate());
+  candidate.setHours(12, 0, 0, 0);
+
+  while (candidate.getFullYear() === YEAR) {
+    const month = candidate.getMonth() + 1;
+    const day = candidate.getDate();
+    const weekday = candidate.getDay();
+    const isWorkday = weekday >= 1 && weekday <= 5;
+    const hasPlan = getPlannedTasks(month, day).length > 0;
+    const hasQueueTicket = getQueueTicketsForDay(month, day).length > 0;
+    if (isWorkday && !hasPlan && !hasQueueTicket) return new Date(candidate);
+    candidate.setDate(candidate.getDate() + 1);
+  }
+
+  return null;
+}
+
+function formatQueueDate(date) {
+  if (!date) return "本年度暂无可安排日期";
+  const weekday = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"][date.getDay()];
+  return `${date.getFullYear()} 年 ${date.getMonth() + 1} 月 ${date.getDate()} 日 · ${weekday}`;
+}
+
+function nextTicketNumber(date) {
+  const prefix = `Q-${padMonth(date.getMonth() + 1)}${String(date.getDate()).padStart(2, "0")}`;
+  const count = getQueueTicketsForDay(date.getMonth() + 1, date.getDate()).length + 1;
+  return `${prefix}-${String(count).padStart(2, "0")}`;
+}
+
+function buildQueuePayload(requester, taskName, date) {
+  return {
+    ticket_no: nextTicketNumber(date),
+    requester,
+    task_name: taskName,
+    scheduled_date: formatDateKey(date),
+    status: "scheduled"
+  };
+}
+
+async function insertRemoteQueueTicket(payload) {
+  const response = await fetch(queueApiUrl(), {
+    method: "POST",
+    headers: queueApiHeaders({
+      "Content-Type": "application/json",
+      Prefer: "return=representation"
+    }),
+    body: JSON.stringify(payload)
+  });
+
+  if (response.status === 409) {
+    const error = new Error("queue slot conflict");
+    error.code = "slot-conflict";
+    throw error;
+  }
+  if (!response.ok) throw new Error(`queue insert failed: ${response.status}`);
+  const rows = await response.json();
+  return normalizeQueueTicket(rows[0] || payload);
+}
+
+async function createQueueTicket(requester, taskName) {
+  const cleanRequester = requester.trim();
+  const cleanTaskName = taskName.trim();
+  if (!cleanRequester || !cleanTaskName) throw new Error("missing fields");
+  if (!queueRemoteEnabled() && !CAN_EDIT) throw new Error("queue unavailable");
+
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const date = findNextAvailableDate();
+    if (!date) throw new Error("no available date");
+    const payload = buildQueuePayload(cleanRequester, cleanTaskName, date);
+
+    if (!queueRemoteEnabled()) {
+      const localTicket = normalizeQueueTicket({
+        ...payload,
+        id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}`,
+        created_at: new Date().toISOString()
+      });
+      queueTickets.push(localTicket);
+      saveLocalQueueTickets();
+      return localTicket;
+    }
+
+    try {
+      const ticket = await insertRemoteQueueTicket(payload);
+      queueTickets.push(ticket);
+      return ticket;
+    } catch (error) {
+      if (error.code !== "slot-conflict") throw error;
+      await loadQueueTickets({ rerender: false });
+    }
+  }
+
+  throw new Error("queue busy");
+}
+
+function renderQueueAvailability() {
+  if (queueLoading) {
+    queueSlotDate.textContent = "正在计算...";
+    queueSubmitButton.disabled = true;
+    return;
+  }
+  if (queueError) {
+    queueSlotDate.textContent = queueError;
+    queueSubmitButton.disabled = !CAN_EDIT || !queueRemoteEnabled();
+    return;
+  }
+  const nextDate = findNextAvailableDate();
+  queueSlotDate.textContent = formatQueueDate(nextDate);
+  queueSubmitButton.disabled = !nextDate;
+}
+
+function openQueueDialog() {
+  queueFormStatus.textContent = "";
+  renderQueueAvailability();
+  if (!queueDialog.open) queueDialog.showModal();
+  queueRequesterInput.focus();
+}
+
 function renderMonths() {
   monthGrid.innerHTML = "";
   monthNames.forEach((label, index) => {
@@ -486,7 +738,7 @@ function renderCalendar() {
 
   buildCalendarDays(currentMonth).forEach((cell, index) => {
     const button = document.createElement("button");
-    const tasks = getTasks(cell.month, cell.day);
+    const items = getCalendarItems(cell.month, cell.day);
     const isWeekend = index % 7 >= 5;
     const isActive = selected.month === cell.month && selected.day === cell.day;
     const isSelected = batchActive && cell.month === currentMonth && activeSelectedDays.includes(cell.day);
@@ -503,37 +755,37 @@ function renderCalendar() {
       isActive ? "active" : "",
       isSelected ? "selected" : ""
     ].filter(Boolean).join(" ");
-    button.setAttribute("aria-label", `${cell.month}月${cell.day}日，${tasks.length} 个任务`);
+    button.setAttribute("aria-label", `${cell.month}月${cell.day}日，${items.length} 个任务`);
     if (isToday) {
       button.setAttribute("aria-current", "date");
-      if (!CAN_EDIT) {
-        button.classList.add("viewable");
-        button.title = "查看今日任务";
-        button.setAttribute("aria-label", `${cell.month}月${cell.day}日，${tasks.length} 个任务，点击查看`);
-      }
+    }
+    if (!CAN_EDIT && items.length) {
+      button.classList.add("viewable");
+      button.title = "查看当天任务";
+      button.setAttribute("aria-label", `${cell.month}月${cell.day}日，${items.length} 个任务，点击查看`);
     }
 
     const number = document.createElement("div");
     number.className = "day-number";
-    number.innerHTML = `<span>${cell.day}</span><span class="day-count">${tasks.length ? `${tasks.length}项` : ""}</span>`;
+    number.innerHTML = `<span>${cell.day}</span><span class="day-count">${items.length ? `${items.length}项` : ""}</span>`;
     button.appendChild(number);
 
     const preview = document.createElement("div");
     preview.className = "task-preview";
-    tasks.slice(0, 3).forEach((task) => {
-      preview.appendChild(createTaskChip(task));
+    items.slice(0, 3).forEach((item) => {
+      preview.appendChild(createTaskChip(item));
     });
-    if (tasks.length > 3) {
+    if (items.length > 3) {
       const more = document.createElement("span");
       more.className = "more-tasks";
-      more.textContent = `还有 ${tasks.length - 3} 项`;
+      more.textContent = `还有 ${items.length - 3} 项`;
       preview.appendChild(more);
     }
     button.appendChild(preview);
 
     button.addEventListener("click", (event) => {
       if (!CAN_EDIT) {
-        if (isToday) openViewerDialog(cell.month, cell.day);
+        if (items.length) openViewerDialog(cell.month, cell.day);
         return;
       }
       if (CAN_EDIT && batchMode) {
@@ -569,33 +821,41 @@ function renderCalendar() {
   });
 }
 
-function createTaskChip(task) {
+function createTaskChip(item) {
   const chip = document.createElement("div");
-  chip.className = "task-chip";
-  chip.style.setProperty("--chip-color", getProjectColor(task));
+  chip.className = `task-chip${item.type === "queue" ? " queue-ticket-chip" : ""}`;
+  chip.style.setProperty("--chip-color", item.color);
   const text = document.createElement("span");
-  text.textContent = task;
+  text.textContent = item.label;
   chip.appendChild(text);
   return chip;
 }
 
 function openViewerDialog(month, day) {
-  const tasks = getTasks(month, day);
+  const items = getCalendarItems(month, day);
   viewerDialogTitle.textContent = `${YEAR} 年 ${month} 月 ${day} 日`;
-  viewerDialogSummary.textContent = tasks.length ? `当天共有 ${tasks.length} 项任务` : "当天暂无任务";
+  viewerDialogSummary.textContent = items.length ? `当天共有 ${items.length} 项任务` : "当天暂无任务";
   viewerDialogList.innerHTML = "";
 
-  tasks.forEach((task) => {
+  items.forEach((item) => {
     const row = document.createElement("div");
-    row.className = "viewer-dialog-task";
+    row.className = `viewer-dialog-task${item.type === "queue" ? " queue-ticket-detail" : ""}`;
 
     const swatch = document.createElement("span");
     swatch.className = "viewer-dialog-swatch";
-    swatch.style.background = getProjectColor(task);
+    swatch.style.background = item.color;
 
-    const text = document.createElement("span");
-    text.textContent = task;
-    row.append(swatch, text);
+    const detail = document.createElement("span");
+    detail.className = "viewer-dialog-task-detail";
+    const text = document.createElement("strong");
+    text.textContent = item.type === "queue" ? item.ticket.taskName : item.label;
+    detail.appendChild(text);
+    if (item.type === "queue") {
+      const meta = document.createElement("small");
+      meta.textContent = `${item.ticket.ticketNo} · 申请人：${item.ticket.requester}`;
+      detail.appendChild(meta);
+    }
+    row.append(swatch, detail);
     viewerDialogList.appendChild(row);
   });
 
@@ -604,7 +864,9 @@ function openViewerDialog(month, day) {
 }
 
 function renderEditor() {
-  const tasks = getTasks(selected.month, selected.day);
+  const tasks = getPlannedTasks(selected.month, selected.day);
+  const tickets = getQueueTicketsForDay(selected.month, selected.day);
+  const totalItems = tasks.length + tickets.length;
   const activeSelectedDays = getSelectedDays();
   const batchActive = CAN_EDIT && (batchMode || activeSelectedDays.length > 1);
   selectedDateTitle.textContent = batchActive
@@ -612,10 +874,10 @@ function renderEditor() {
     : `${YEAR} 年 ${selected.month} 月 ${selected.day} 日`;
   daySummary.textContent = batchActive
     ? `已选 ${activeSelectedDays.length} 天`
-    : (tasks.length ? `当天已有 ${tasks.length} 项任务。` : CAN_EDIT ? "这一天还没有任务，可以直接添加。" : "这一天暂无任务。");
+    : (totalItems ? `当天已有 ${totalItems} 项任务。` : CAN_EDIT ? "这一天还没有任务，可以直接添加。" : "这一天暂无任务。");
   taskList.innerHTML = "";
 
-  if (!tasks.length) {
+  if (!totalItems) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
     empty.textContent = "暂无任务";
@@ -656,6 +918,22 @@ function renderEditor() {
 
     row.append(input);
     if (CAN_EDIT) row.append(remove);
+    taskList.appendChild(row);
+  });
+
+  tickets.forEach((ticket) => {
+    const row = document.createElement("div");
+    row.className = "task-row queue-ticket-row";
+    row.style.setProperty("--chip-color", QUEUE_COLOR);
+
+    const detail = document.createElement("div");
+    detail.className = "queue-ticket-row-detail";
+    const title = document.createElement("strong");
+    title.textContent = ticket.taskName;
+    const meta = document.createElement("small");
+    meta.textContent = `${ticket.ticketNo} · ${ticket.requester}`;
+    detail.append(title, meta);
+    row.append(detail);
     taskList.appendChild(row);
   });
 }
@@ -849,6 +1127,7 @@ function renderAll() {
   renderCalendar();
   renderEditor();
   renderProjects();
+  renderQueueAvailability();
 }
 
 function buildSnapshot() {
@@ -1064,6 +1343,8 @@ async function exportLatestPackage() {
   const indexHtml = await readTextAsset("./index.html", `<!doctype html>\n${document.documentElement.outerHTML}`);
   const styles = await readTextAsset("./styles.css", "");
   const appScript = await readTextAsset("./app.js", "");
+  const queueConfig = await readTextAsset("./queue-config.js", "window.__DESIGN_CALENDAR_QUEUE_CONFIG__ = {};\n");
+  const supabaseSetup = await readTextAsset("./supabase-setup.sql", "");
   const snapshotJson = JSON.stringify(snapshot, null, 2);
   const readme = [
     "设计月度规划使用说明",
@@ -1071,13 +1352,16 @@ async function exportLatestPackage() {
     "1. 解压这个文件夹。",
     "2. 双击打开 index.html。",
     "3. 已填写的数据在 design-calendar-data.js 里，会作为另一台设备的初始数据。",
-    "4. 后续继续填写时，数据仍会自动保存在当前浏览器；换设备前请再次点击“导出最新整包”。"
+    "4. queue-config.js 保存共享取号服务配置，supabase-setup.sql 用于初始化数据库。",
+    "5. 后续继续填写时，数据仍会自动保存在当前浏览器；换设备前请再次点击“导出最新整包”。"
   ].join("\n");
 
   const zipBytes = createZip([
     { name: "index.html", content: indexHtml },
     { name: "styles.css", content: styles },
     { name: "app.js", content: appScript },
+    { name: "queue-config.js", content: queueConfig },
+    { name: "supabase-setup.sql", content: supabaseSetup },
     { name: "design-calendar-data.js", content: dataScript },
     { name: "design-calendar-snapshot.json", content: snapshotJson },
     { name: "README.txt", content: readme }
@@ -1149,7 +1433,7 @@ async function exportCalendarImage() {
     const col = index % 7;
     const x = pad + col * (cellWidth + gap);
     const y = cellStartY + row * (cellHeight + gap);
-    const tasks = getTasks(cell.month, cell.day);
+    const tasks = getDisplayTasks(cell.month, cell.day);
     const isOutside = cell.outside;
     const isWeekend = col >= 5;
     const isSelected = selectedDaysSet.has(cell.day) && cell.month === currentMonth;
@@ -1221,7 +1505,7 @@ function taskChipHtml(task) {
 }
 
 function buildExcelCellHtml(cell) {
-  const tasks = getTasks(cell.month, cell.day);
+  const tasks = getDisplayTasks(cell.month, cell.day);
   const isOutside = cell.outside;
   const isWeekend = mondayBasedDay(new Date(YEAR, cell.month - 1, cell.day)) >= 5;
   const background = isOutside
@@ -1255,7 +1539,7 @@ function buildExcelCopyPlainText(month) {
   const cells = buildCalendarDays(month);
   for (let index = 0; index < cells.length; index += 7) {
     const week = cells.slice(index, index + 7).map((cell) => {
-      const tasks = getTasks(cell.month, cell.day);
+      const tasks = getDisplayTasks(cell.month, cell.day);
       const taskText = tasks.length ? ` ${tasks.join(" / ")}` : "";
       return `${cell.day}${taskText}`;
     });
@@ -1351,7 +1635,7 @@ taskForm.addEventListener("submit", (event) => {
   const targetDays = multiSelect ? activeSelectedDays : [selected.day];
   const month = selected.month;
   targetDays.forEach((day) => {
-    setTasks(month, day, [...getTasks(month, day), value]);
+    setTasks(month, day, [...getPlannedTasks(month, day), value]);
   });
   taskInput.value = "";
   setEditorCollapsed(false);
@@ -1404,6 +1688,57 @@ viewerDialog.addEventListener("click", (event) => {
     || event.clientY < rect.top
     || event.clientY > rect.bottom;
   if (clickedOutside) viewerDialog.close();
+});
+
+queueOpenButton.addEventListener("click", openQueueDialog);
+queueDialogClose.addEventListener("click", () => queueDialog.close());
+
+queueDialog.addEventListener("click", (event) => {
+  if (event.target !== queueDialog) return;
+  const rect = queueDialog.getBoundingClientRect();
+  const clickedOutside = event.clientX < rect.left
+    || event.clientX > rect.right
+    || event.clientY < rect.top
+    || event.clientY > rect.bottom;
+  if (clickedOutside) queueDialog.close();
+});
+
+queueForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const requester = queueRequesterInput.value.trim();
+  const taskName = queueTaskInput.value.trim();
+  if (!requester || !taskName) {
+    queueFormStatus.textContent = "请填写申请人和任务名称";
+    return;
+  }
+
+  queueSubmitButton.disabled = true;
+  queueSubmitButton.textContent = "正在取号...";
+  queueFormStatus.textContent = "正在确认最近的空闲日期";
+
+  try {
+    const ticket = await createQueueTicket(requester, taskName);
+    const [year, month, day] = ticket.scheduledDate.split("-").map(Number);
+    currentMonth = month;
+    selected = { month, day };
+    selectedDays = [day];
+    selectionAnchor = day;
+    queueForm.reset();
+    queueFormStatus.textContent = `取号成功：${ticket.ticketNo}，已安排到 ${year} 年 ${month} 月 ${day} 日`;
+    renderAll();
+    showToast(`取号成功 · ${ticket.ticketNo}`);
+  } catch (error) {
+    console.error(error);
+    const messages = {
+      "queue unavailable": "在线取号服务尚未连接",
+      "no available date": "本年度暂无可安排日期",
+      "queue busy": "刚刚有其他人取号，请再试一次"
+    };
+    queueFormStatus.textContent = messages[error.message] || "取号失败，请稍后重试";
+  } finally {
+    queueSubmitButton.textContent = "确认取号";
+    renderQueueAvailability();
+  }
 });
 
 document.getElementById("clearDayButton").addEventListener("click", () => {
@@ -1577,3 +1912,4 @@ document.getElementById("importInput").addEventListener("change", async (event) 
 });
 
 renderAll();
+loadQueueTickets();

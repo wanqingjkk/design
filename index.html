@@ -75,6 +75,7 @@
             <button type="button" id="nextMonth">下一月</button>
           </div>
           <div class="topbar-tools" aria-label="批量选择">
+            <button class="queue-open-button" type="button" id="queueOpenButton">排队取号</button>
             <button type="button" id="batchToggle">多选</button>
             <button type="button" id="clearSelectionButton">清空选中</button>
           </div>
@@ -143,8 +144,36 @@
       </div>
     </dialog>
 
+    <dialog class="queue-dialog" id="queueDialog" aria-labelledby="queueDialogTitle">
+      <div class="queue-dialog-header">
+        <div>
+          <p class="queue-dialog-kicker">排队取号</p>
+          <h2 id="queueDialogTitle">预约最近空闲工作日</h2>
+        </div>
+        <button class="icon-button" id="queueDialogClose" type="button" aria-label="关闭取号弹窗" title="关闭">×</button>
+      </div>
+
+      <div class="queue-slot" id="queueSlot" aria-live="polite">
+        <span>预计安排</span>
+        <strong id="queueSlotDate">正在计算...</strong>
+        <small>自动跳过周六、周日、假期和已有项目的日期</small>
+      </div>
+
+      <form class="queue-form" id="queueForm">
+        <label for="queueRequesterInput">申请人</label>
+        <input id="queueRequesterInput" name="requester" type="text" maxlength="40" autocomplete="name" required />
+
+        <label for="queueTaskInput">任务名称</label>
+        <textarea id="queueTaskInput" name="taskName" rows="3" maxlength="120" required></textarea>
+
+        <p class="queue-form-status" id="queueFormStatus" role="status" aria-live="polite"></p>
+        <button class="queue-submit-button" id="queueSubmitButton" type="submit">确认取号</button>
+      </form>
+    </dialog>
+
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+    <script src="./queue-config.js"></script>
     <script src="./design-calendar-data.js"></script>
     <script src="./app.js"></script>
   </body>

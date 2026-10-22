@@ -73,7 +73,8 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
@@ -104,8 +105,19 @@ input {
   outline: none;
 }
 
+textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  outline: none;
+}
+
 input:focus,
-select:focus {
+select:focus,
+textarea:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
 }
@@ -458,6 +470,18 @@ body.menu-collapsed .toggle-label {
   padding: 6px 10px;
 }
 
+.topbar-tools .queue-open-button {
+  border-color: #111111;
+  background: #111111;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.topbar-tools .queue-open-button:hover {
+  border-color: #2f2f2f;
+  background: #2f2f2f;
+}
+
 .topbar-tools button[aria-pressed="true"] {
   border-color: transparent;
   background: var(--accent);
@@ -611,6 +635,26 @@ body.menu-collapsed .toggle-label {
   white-space: nowrap;
 }
 
+.task-chip.queue-ticket-chip {
+  grid-template-columns: 26px minmax(0, 1fr);
+  background: var(--chip-color);
+  box-shadow: inset 0 0 0 1px rgba(17, 17, 17, 0.18);
+}
+
+.task-chip.queue-ticket-chip::before {
+  content: "Q";
+  display: grid;
+  width: auto;
+  height: auto;
+  margin: 0;
+  place-items: center;
+  align-self: stretch;
+  background: #111111;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
 .more-tasks {
   color: var(--muted);
   font-size: 12px;
@@ -742,6 +786,34 @@ body.read-only-mode .task-row {
 .task-row button:hover {
   color: var(--text);
   background: var(--surface-soft);
+}
+
+.task-row.queue-ticket-row {
+  grid-template-columns: minmax(0, 1fr);
+  padding: 8px 10px;
+  background: #eadfce;
+  box-shadow: inset 0 0 0 1px rgba(17, 17, 17, 0.18);
+}
+
+.task-row.queue-ticket-row::before {
+  display: none;
+}
+
+.queue-ticket-row-detail {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.queue-ticket-row-detail strong,
+.queue-ticket-row-detail small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue-ticket-row-detail small {
+  color: #5b5145;
 }
 
 .empty-state {
@@ -878,11 +950,138 @@ body.batch-mode .day-summary {
   height: 14px;
 }
 
-body.read-only-mode .day-cell:not(.today) {
+.viewer-dialog-task-detail {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.viewer-dialog-task-detail strong {
+  font-weight: 600;
+}
+
+.viewer-dialog-task-detail small {
+  color: #6c6962;
+}
+
+.viewer-dialog-task.queue-ticket-detail {
+  padding: 8px 10px;
+  background: #eadfce;
+}
+
+.queue-dialog {
+  width: min(520px, calc(100vw - 32px));
+  margin: auto;
+  padding: 20px;
+  border: 1px solid #181817;
+  border-radius: 2px;
+  background: #f7f5ef;
+  color: #181817;
+  box-shadow: 0 10px 0 rgba(24, 24, 23, 0.12);
+}
+
+.queue-dialog::backdrop {
+  background: rgba(24, 24, 23, 0.42);
+}
+
+.queue-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #d8d5cd;
+}
+
+.queue-dialog-kicker {
+  margin: 0 0 5px;
+  color: #6c6962;
+  font-size: 0.75rem;
+}
+
+.queue-dialog h2 {
+  margin: 0;
+  font-family: Georgia, "Songti SC", "STSong", serif;
+  font-size: 1.5rem;
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+.queue-slot {
+  display: grid;
+  gap: 4px;
+  margin: 18px 0;
+  padding: 14px 0;
+  border-top: 1px solid #d8d5cd;
+  border-bottom: 1px solid #d8d5cd;
+}
+
+.queue-slot span,
+.queue-slot small {
+  color: #6c6962;
+}
+
+.queue-slot strong {
+  font-family: Georgia, "Songti SC", "STSong", serif;
+  font-size: 1.25rem;
+  font-weight: 400;
+}
+
+.queue-form {
+  display: grid;
+  gap: 8px;
+}
+
+.queue-form label {
+  margin-top: 4px;
+  color: #4f4c46;
+  font-weight: 600;
+}
+
+.queue-form input,
+.queue-form textarea {
+  min-height: 42px;
+  padding: 9px 10px;
+  border-color: #cfcac0;
+  border-radius: 2px;
+  background: #ffffff;
+}
+
+.queue-form textarea {
+  min-height: 84px;
+}
+
+.queue-form-status {
+  min-height: 20px;
+  margin: 4px 0 0;
+  color: #4f4c46;
+}
+
+.queue-submit-button {
+  min-height: 44px;
+  margin-top: 4px;
+  border-color: #181817;
+  border-radius: 2px;
+  background: #181817;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.queue-submit-button:hover {
+  border-color: #34332f;
+  background: #34332f;
+}
+
+.queue-submit-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+body.read-only-mode .day-cell:not(.viewable) {
   cursor: default;
 }
 
-body.read-only-mode .day-cell.today.viewable {
+body.read-only-mode .day-cell.viewable {
   cursor: pointer;
 }
 
@@ -1288,6 +1487,27 @@ body.style-editorial .task-chip span {
   font-size: 0.74rem;
 }
 
+body.style-editorial .task-chip.queue-ticket-chip {
+  grid-template-columns: 24px minmax(0, 1fr);
+  background: #eadfce;
+  box-shadow: inset 0 0 0 1px rgba(24, 24, 23, 0.22);
+}
+
+body.style-editorial .task-chip.queue-ticket-chip::before {
+  width: auto;
+  height: auto;
+  margin: 0;
+  background: #181817;
+  color: #f7f5ef;
+}
+
+body.style-editorial .topbar-tools .queue-open-button {
+  border-color: #181817;
+  border-radius: 2px;
+  background: #181817;
+  color: #f7f5ef;
+}
+
 body.style-editorial .sidebar {
   top: 12px;
   left: 12px;
@@ -1389,12 +1609,29 @@ body.style-editorial .toast {
 }
 
 @media (max-width: 640px) {
+  .queue-dialog {
+    width: calc(100vw - 20px);
+    max-height: calc(100vh - 20px);
+    padding: 14px;
+  }
+
   body.style-editorial .calendar-grid {
     border-top: 1px solid var(--line);
   }
 
   body.style-editorial .day-cell {
     min-height: 88px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
   }
 }
 
