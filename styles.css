@@ -1077,6 +1077,118 @@ body.batch-mode .day-summary {
   cursor: not-allowed;
 }
 
+.queue-receipt-dialog {
+  width: min(420px, calc(100vw - 32px));
+  margin: auto;
+  padding: 28px 30px 24px;
+  overflow: visible;
+  border: 1px solid #aaa49a;
+  border-radius: 2px;
+  background-color: #f3eee4;
+  background-image: repeating-linear-gradient(0deg, rgba(84, 73, 58, 0.025) 0, rgba(84, 73, 58, 0.025) 1px, transparent 1px, transparent 4px);
+  color: #181817;
+  text-align: center;
+  box-shadow: 0 18px 40px rgba(24, 24, 23, 0.24);
+}
+
+.queue-receipt-dialog::backdrop {
+  background: rgba(24, 24, 23, 0.52);
+}
+
+.queue-receipt-close {
+  position: absolute;
+  top: -12px;
+  right: -12px;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid #181817;
+  border-radius: 50%;
+  background: #f7f5ef;
+  color: #181817;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.queue-receipt-banner {
+  padding: 11px 14px;
+  border: 1px solid #494640;
+  background: #494640;
+  color: #f7f5ef;
+  font-family: Georgia, "Songti SC", "STSong", serif;
+  font-size: 1.75rem;
+  letter-spacing: 0;
+}
+
+.queue-receipt-slogan {
+  margin: 22px 0 18px;
+  font-family: Georgia, "Songti SC", "STSong", serif;
+  font-size: 1.15rem;
+  line-height: 1.5;
+}
+
+.queue-receipt-rule {
+  width: 100%;
+  height: 1px;
+  background: #aaa49a;
+}
+
+.queue-receipt-number {
+  display: block;
+  margin: 22px 0 2px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(4.75rem, 18vw, 6.5rem);
+  font-weight: 400;
+  line-height: 0.95;
+}
+
+.queue-receipt-success {
+  margin: 10px 0 20px;
+  color: #6c6962;
+  font-size: 0.85rem;
+}
+
+.queue-receipt-waiting,
+.queue-receipt-estimate {
+  margin: 0;
+  font-family: Georgia, "Songti SC", "STSong", serif;
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+.queue-receipt-waiting strong,
+.queue-receipt-estimate strong {
+  font-size: 1.35em;
+  font-weight: 600;
+}
+
+.queue-receipt-estimate {
+  margin-bottom: 22px;
+}
+
+.queue-receipt-task {
+  min-height: 22px;
+  margin: 16px 0;
+  overflow-wrap: anywhere;
+  color: #6c6962;
+  font-size: 0.82rem;
+}
+
+.queue-receipt-done {
+  min-height: 42px;
+  width: 100%;
+  border-color: #181817;
+  border-radius: 2px;
+  background: transparent;
+  color: #181817;
+  font-weight: 700;
+}
+
+.queue-receipt-done:hover {
+  background: #181817;
+  color: #f7f5ef;
+}
+
 body.read-only-mode .day-cell:not(.viewable) {
   cursor: default;
 }

@@ -160,15 +160,29 @@
       </div>
 
       <form class="queue-form" id="queueForm">
-        <label for="queueRequesterInput">申请人</label>
-        <input id="queueRequesterInput" name="requester" type="text" maxlength="40" autocomplete="name" required />
-
         <label for="queueTaskInput">任务名称</label>
         <textarea id="queueTaskInput" name="taskName" rows="3" maxlength="120" required></textarea>
 
         <p class="queue-form-status" id="queueFormStatus" role="status" aria-live="polite"></p>
         <button class="queue-submit-button" id="queueSubmitButton" type="submit">确认取号</button>
       </form>
+    </dialog>
+
+    <dialog class="queue-receipt-dialog" id="queueReceiptDialog" aria-labelledby="queueReceiptTitle">
+      <button class="queue-receipt-close" id="queueReceiptClose" type="button" aria-label="关闭取号纸" title="关闭">×</button>
+      <div class="queue-receipt-banner" id="queueReceiptTitle">取单号</div>
+      <p class="queue-receipt-slogan">在做了，再催你自己做。</p>
+      <div class="queue-receipt-rule" aria-hidden="true"></div>
+      <strong class="queue-receipt-number" id="queueReceiptNumber">A1</strong>
+      <p class="queue-receipt-success">已成功取号</p>
+      <p class="queue-receipt-waiting">您前面还有 <strong id="queueReceiptTaskCount">0</strong> 个任务待处理</p>
+      <p class="queue-receipt-estimate">
+        请耐心等到 <strong id="queueReceiptDate">待安排</strong><br />
+        （估计等待时间 <strong id="queueReceiptDayCount">0</strong> 天）
+      </p>
+      <div class="queue-receipt-rule" aria-hidden="true"></div>
+      <p class="queue-receipt-task" id="queueReceiptTask"></p>
+      <button class="queue-receipt-done" id="queueReceiptDone" type="button">知道了</button>
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
