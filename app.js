@@ -8,6 +8,7 @@ const PALETTE_VERSION = 3;
 const DEFAULT_THEME = "fresh";
 const QUEUE_LOCAL_KEY = "design-calendar-queue-v1";
 const QUEUE_CONFIG = window.__DESIGN_CALENDAR_QUEUE_CONFIG__ || {};
+const QUEUE_ADMIN_CONFIG = window.__DESIGN_CALENDAR_QUEUE_ADMIN_CONFIG__ || {};
 const QUEUE_COLOR = "#eadfce";
 const CAN_EDIT = false;
 const IS_EDITORIAL_PREVIEW = true;
@@ -229,6 +230,7 @@ const queueFormStatus = document.getElementById("queueFormStatus");
 const queueReceiptDialog = document.getElementById("queueReceiptDialog");
 const queueReceiptClose = document.getElementById("queueReceiptClose");
 const queueReceiptDone = document.getElementById("queueReceiptDone");
+const queueReceiptDelete = document.getElementById("queueReceiptDelete");
 const queueReceiptNumber = document.getElementById("queueReceiptNumber");
 const queueReceiptTaskCount = document.getElementById("queueReceiptTaskCount");
 const queueReceiptDayCount = document.getElementById("queueReceiptDayCount");
@@ -679,7 +681,15 @@ function openQueueReceipt(ticket) {
     ? `${scheduledDate.getMonth() + 1} 月 ${scheduledDate.getDate()} 日`
     : "待安排";
   queueReceiptTask.textContent = `预约项目：${ticket.taskName}`;
+  queueReceiptDelete.hidden = !CAN_EDIT;
+  queueReceiptDelete.disabled = queueRemoteEnabled() && !queueEditorToken();
+  queueReceiptDelete.dataset.ticketId = ticket.id;
+  queueReceiptDelete.title = queueReceiptDelete.disabled ? "本地删除权限尚未配置" : "删除这个取号";
   if (!queueReceiptDialog.open) queueReceiptDialog.showModal();
+}
+
+function queueEditorToken() {
+  return String(QUEUE_ADMIN_CONFIG.editorDeleteToken || "").trim();
 }
 
 function nextTicketNumber(date) {
@@ -716,6 +726,51 @@ async function insertRemoteQueueTicket(payload) {
   if (!response.ok) throw new Error(`queue insert failed: ${response.status}`);
   const rows = await response.json();
   return normalizeQueueTicket(rows[0] || payload);
+}
+
+async function deleteQueueTicket(ticket) {
+  if (!CAN_EDIT || !ticket) throw new Error("delete unavailable");
+
+  if (queueRemoteEnabled()) {
+    const token = queueEditorToken();
+    if (!token) throw new Error("delete unavailable");
+    const response = await fetch(`${queueApiUrl()}?id=eq.${encodeURIComponent(ticket.id)}`, {
+      method: "DELETE",
+      headers: queueApiHeaders({
+        "X-Client-Info": `design-calendar-editor:${token}`,
+        Prefer: "return=representation"
+      })
+    });
+    if (!response.ok) throw new Error(`queue delete failed: ${response.status}`);
+    const rows = await response.json();
+    if (!Array.isArray(rows) || !rows.length) throw new Error("delete denied");
+  }
+
+  queueTickets = queueTickets.filter((item) => item.id !== ticket.id && item.ticketNo !== ticket.ticketNo);
+  if (!queueRemoteEnabled()) saveLocalQueueTickets();
+}
+
+async function confirmAndDeleteQueueTicket(ticket, button) {
+  if (!ticket || !window.confirm(`确认删除取号 ${queueDisplayNumber(ticket)}「${ticket.taskName}」吗？`)) return;
+  const previousText = button?.textContent;
+  if (button) {
+    button.disabled = true;
+    button.textContent = "删除中...";
+  }
+  try {
+    await deleteQueueTicket(ticket);
+    if (queueReceiptDialog.open) queueReceiptDialog.close();
+    renderAll();
+    showToast("取号已删除");
+  } catch (error) {
+    console.error(error);
+    showToast(error.message === "delete unavailable" ? "本地删除权限尚未配置" : "删除失败，请稍后重试");
+  } finally {
+    if (button?.isConnected) {
+      button.disabled = false;
+      button.textContent = previousText;
+    }
+  }
 }
 
 async function createQueueTicket(taskName) {
@@ -850,6 +905,14 @@ function renderCalendar() {
     button.appendChild(preview);
 
     button.addEventListener("click", (event) => {
+      const queueChip = event.target instanceof Element ? event.target.closest(".queue-ticket-chip") : null;
+      if (queueChip) {
+        const ticket = queueTickets.find((item) => item.id === queueChip.dataset.ticketId);
+        if (ticket) {
+          openQueueReceipt(ticket);
+          return;
+        }
+      }
       if (!CAN_EDIT) {
         if (items.length) openViewerDialog(cell.month, cell.day);
         return;
@@ -891,6 +954,10 @@ function createTaskChip(item) {
   const chip = document.createElement("div");
   chip.className = `task-chip${item.type === "queue" ? " queue-ticket-chip" : ""}`;
   chip.style.setProperty("--chip-color", item.color);
+  if (item.type === "queue") {
+    chip.dataset.ticketId = item.ticket.id;
+    chip.title = "点击查看取号纸";
+  }
   const text = document.createElement("span");
   text.textContent = item.label;
   chip.appendChild(text);
@@ -904,8 +971,16 @@ function openViewerDialog(month, day) {
   viewerDialogList.innerHTML = "";
 
   items.forEach((item) => {
-    const row = document.createElement("div");
+    const row = document.createElement(item.type === "queue" ? "button" : "div");
     row.className = `viewer-dialog-task${item.type === "queue" ? " queue-ticket-detail" : ""}`;
+    if (item.type === "queue") {
+      row.type = "button";
+      row.title = "查看取号纸";
+      row.addEventListener("click", () => {
+        viewerDialog.close();
+        openQueueReceipt(item.ticket);
+      });
+    }
 
     const swatch = document.createElement("span");
     swatch.className = "viewer-dialog-swatch";
@@ -999,7 +1074,22 @@ function renderEditor() {
     const meta = document.createElement("small");
     meta.textContent = ticket.ticketNo;
     detail.append(title, meta);
-    row.append(detail);
+    const open = document.createElement("button");
+    open.type = "button";
+    open.className = "queue-ticket-open";
+    open.title = "查看取号纸";
+    open.append(detail);
+    open.addEventListener("click", () => openQueueReceipt(ticket));
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "queue-ticket-delete";
+    remove.textContent = "删除";
+    remove.title = "删除取号";
+    remove.disabled = queueRemoteEnabled() && !queueEditorToken();
+    remove.addEventListener("click", () => confirmAndDeleteQueueTicket(ticket, remove));
+
+    row.append(open, remove);
     taskList.appendChild(row);
   });
 }
@@ -1760,6 +1850,10 @@ queueOpenButton.addEventListener("click", openQueueDialog);
 queueDialogClose.addEventListener("click", () => queueDialog.close());
 queueReceiptClose.addEventListener("click", () => queueReceiptDialog.close());
 queueReceiptDone.addEventListener("click", () => queueReceiptDialog.close());
+queueReceiptDelete.addEventListener("click", () => {
+  const ticket = queueTickets.find((item) => item.id === queueReceiptDelete.dataset.ticketId);
+  confirmAndDeleteQueueTicket(ticket, queueReceiptDelete);
+});
 
 queueDialog.addEventListener("click", (event) => {
   if (event.target !== queueDialog) return;

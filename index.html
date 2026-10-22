@@ -182,7 +182,10 @@
       </p>
       <div class="queue-receipt-rule" aria-hidden="true"></div>
       <p class="queue-receipt-task" id="queueReceiptTask"></p>
-      <button class="queue-receipt-done" id="queueReceiptDone" type="button">知道了</button>
+      <div class="queue-receipt-actions">
+        <button class="queue-receipt-delete" id="queueReceiptDelete" type="button" hidden>删除取号</button>
+        <button class="queue-receipt-done" id="queueReceiptDone" type="button">知道了</button>
+      </div>
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>

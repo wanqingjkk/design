@@ -84,16 +84,16 @@ button {
   background: var(--surface);
   color: var(--text);
   cursor: pointer;
-  transition: transform 150ms ease, border-color 150ms ease, background 150ms ease;
+  transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease, box-shadow 150ms ease;
 }
 
 button:hover {
-  border-color: var(--accent);
-  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--line) 42%, var(--text));
+  background: color-mix(in srgb, var(--surface) 88%, var(--text));
 }
 
 button:active {
-  transform: translateY(1px);
+  background: color-mix(in srgb, var(--surface) 82%, var(--text));
 }
 
 input {
@@ -639,6 +639,13 @@ body.menu-collapsed .toggle-label {
   grid-template-columns: 26px minmax(0, 1fr);
   background: var(--chip-color);
   box-shadow: inset 0 0 0 1px rgba(17, 17, 17, 0.18);
+  cursor: pointer;
+  transition: background-color 150ms ease, box-shadow 150ms ease;
+}
+
+.task-chip.queue-ticket-chip:hover {
+  background: #e2d4bf;
+  box-shadow: inset 0 0 0 1px rgba(17, 17, 17, 0.44);
 }
 
 .task-chip.queue-ticket-chip::before {
@@ -789,10 +796,43 @@ body.read-only-mode .task-row {
 }
 
 .task-row.queue-ticket-row {
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
   padding: 8px 10px;
   background: #eadfce;
   box-shadow: inset 0 0 0 1px rgba(17, 17, 17, 0.18);
+}
+
+.task-row .queue-ticket-open {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.task-row .queue-ticket-open:hover {
+  background: transparent;
+}
+
+.task-row .queue-ticket-delete {
+  width: auto;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid rgba(17, 17, 17, 0.2);
+  background: rgba(255, 255, 255, 0.32);
+  color: #5b5145;
+  font-size: 0.75rem;
+}
+
+.task-row .queue-ticket-delete:hover {
+  border-color: #9f5f57;
+  background: #f1ded8;
+  color: #733b34;
 }
 
 .task-row.queue-ticket-row::before {
@@ -965,8 +1005,19 @@ body.batch-mode .day-summary {
 }
 
 .viewer-dialog-task.queue-ticket-detail {
+  width: 100%;
   padding: 8px 10px;
+  border: 1px solid rgba(24, 24, 23, 0.18);
+  border-radius: 2px;
   background: #eadfce;
+  color: #181817;
+  text-align: left;
+}
+
+.viewer-dialog-task.queue-ticket-detail:hover {
+  border-color: rgba(24, 24, 23, 0.46);
+  background: #e2d4bf;
+  box-shadow: inset 3px 0 0 #181817;
 }
 
 .queue-dialog {
@@ -1174,9 +1225,15 @@ body.batch-mode .day-summary {
   font-size: 0.82rem;
 }
 
-.queue-receipt-done {
+.queue-receipt-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.queue-receipt-done,
+.queue-receipt-delete {
   min-height: 42px;
-  width: 100%;
+  flex: 1;
   border-color: #181817;
   border-radius: 2px;
   background: transparent;
@@ -1185,8 +1242,20 @@ body.batch-mode .day-summary {
 }
 
 .queue-receipt-done:hover {
-  background: #181817;
-  color: #f7f5ef;
+  border-color: #777168;
+  background: #e8e1d5;
+  color: #181817;
+}
+
+.queue-receipt-delete {
+  border-color: #9f5f57;
+  color: #733b34;
+}
+
+.queue-receipt-delete:hover {
+  border-color: #733b34;
+  background: #ecd8d2;
+  color: #733b34;
 }
 
 body.read-only-mode .day-cell:not(.viewable) {
@@ -1421,8 +1490,8 @@ body.style-editorial select {
 }
 
 body.style-editorial button:hover {
-  border-color: #181817;
-  background: #efede7;
+  border-color: #aaa49a;
+  background: #f0ede6;
 }
 
 body.style-editorial .app-shell {
@@ -1529,7 +1598,14 @@ body.style-editorial .day-cell {
 }
 
 body.style-editorial .day-cell:hover {
-  background: #efede7;
+  background: #f3f0e9;
+  box-shadow: inset 0 0 0 1px #aaa49a;
+}
+
+body.style-editorial .day-cell.active:hover,
+body.style-editorial .day-cell.selected:hover {
+  background: #f1efe9;
+  box-shadow: inset 0 0 0 2px #181817;
 }
 
 body.style-editorial .day-cell.active,
@@ -1617,6 +1693,13 @@ body.style-editorial .topbar-tools .queue-open-button {
   border-color: #181817;
   border-radius: 2px;
   background: #181817;
+  color: #f7f5ef;
+}
+
+body.style-editorial .topbar-tools .queue-open-button:hover,
+body.style-editorial .queue-submit-button:hover {
+  border-color: #34322f;
+  background: #34322f;
   color: #f7f5ef;
 }
 
