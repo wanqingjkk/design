@@ -28,6 +28,17 @@ with check (
   and extract(isodow from scheduled_date) between 1 and 5
 );
 
+revoke update on public.queue_tickets from anon, authenticated;
+grant update (status) on public.queue_tickets to anon, authenticated;
+
+drop policy if exists "Public can cancel queue tickets" on public.queue_tickets;
+create policy "Public can cancel queue tickets"
+on public.queue_tickets
+for update
+to anon, authenticated
+using (status = 'scheduled')
+with check (status = 'cancelled');
+
 drop policy if exists "Local editor can delete queue tickets" on public.queue_tickets;
 create policy "Local editor can delete queue tickets"
 on public.queue_tickets

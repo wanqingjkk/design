@@ -220,17 +220,22 @@ const viewerDialogSummary = document.getElementById("viewerDialogSummary");
 const viewerDialogList = document.getElementById("viewerDialogList");
 const viewerDialogClose = document.getElementById("viewerDialogClose");
 const queueOpenButton = document.getElementById("queueOpenButton");
+const queueListOpenButton = document.getElementById("queueListOpenButton");
+const queueListCount = document.getElementById("queueListCount");
+const queueListDialog = document.getElementById("queueListDialog");
+const queueListClose = document.getElementById("queueListClose");
+const queueListSummary = document.getElementById("queueListSummary");
+const queueList = document.getElementById("queueList");
 const queueDialog = document.getElementById("queueDialog");
 const queueDialogClose = document.getElementById("queueDialogClose");
 const queueForm = document.getElementById("queueForm");
 const queueTaskInput = document.getElementById("queueTaskInput");
 const queueSubmitButton = document.getElementById("queueSubmitButton");
-const queueSlotDate = document.getElementById("queueSlotDate");
 const queueFormStatus = document.getElementById("queueFormStatus");
 const queueReceiptDialog = document.getElementById("queueReceiptDialog");
 const queueReceiptClose = document.getElementById("queueReceiptClose");
 const queueReceiptDone = document.getElementById("queueReceiptDone");
-const queueReceiptDelete = document.getElementById("queueReceiptDelete");
+const queueReceiptCancel = document.getElementById("queueReceiptCancel");
 const queueReceiptNumber = document.getElementById("queueReceiptNumber");
 const queueReceiptTaskCount = document.getElementById("queueReceiptTaskCount");
 const queueReceiptDayCount = document.getElementById("queueReceiptDayCount");
@@ -617,12 +622,6 @@ function findNextAvailableDate() {
   return null;
 }
 
-function formatQueueDate(date) {
-  if (!date) return "本年度暂无可安排日期";
-  const weekday = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"][date.getDay()];
-  return `${date.getFullYear()} 年 ${date.getMonth() + 1} 月 ${date.getDate()} 日 · ${weekday}`;
-}
-
 function parseQueueDate(dateKey) {
   const [year, month, day] = String(dateKey).split("-").map(Number);
   if (!year || !month || !day) return null;
@@ -631,6 +630,14 @@ function parseQueueDate(dateKey) {
 
 function isHolidayTask(taskName) {
   return ["假期", "端午假期", "请假半天"].includes(taskName);
+}
+
+function isQueueWorkday(date) {
+  const weekday = date.getDay();
+  if (weekday === 0 || weekday === 6) return false;
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  return !getPlannedTasks(month, day).some(isHolidayTask);
 }
 
 function queueDisplayNumber(ticket) {
@@ -646,29 +653,106 @@ function queueDisplayNumber(ticket) {
   return `A${Math.max(index, 0) + 1}`;
 }
 
+function getActiveQueueTickets() {
+  return queueTickets
+    .filter((ticket) => ticket.status !== "cancelled")
+    .slice()
+    .sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate)
+      || (a.createdAt || a.ticketNo).localeCompare(b.createdAt || b.ticketNo));
+}
+
+function formatQueueListDate(dateKey) {
+  const date = parseQueueDate(dateKey);
+  if (!date) return "待安排";
+  const weekday = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"][date.getDay()];
+  return `${date.getMonth() + 1} 月 ${date.getDate()} 日 · ${weekday}`;
+}
+
+function renderQueueList() {
+  const activeTickets = getActiveQueueTickets();
+  queueListCount.textContent = String(activeTickets.length);
+  queueListCount.setAttribute("aria-label", `${activeTickets.length} 个排队取号`);
+  queueListOpenButton.classList.toggle("has-queue", activeTickets.length > 0);
+  queueList.innerHTML = "";
+
+  if (queueLoading) {
+    queueListSummary.textContent = "正在读取排队信息";
+    return;
+  }
+
+  if (queueError) {
+    queueListSummary.textContent = queueError;
+    return;
+  }
+
+  queueListSummary.textContent = activeTickets.length
+    ? `共 ${activeTickets.length} 个待处理取号，点击可查看排队纸`
+    : "当前没有待处理的取号";
+
+  activeTickets.forEach((ticket) => {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "queue-list-item";
+    item.title = `查看 ${queueDisplayNumber(ticket)} 排队纸`;
+
+    const number = document.createElement("strong");
+    number.className = "queue-list-number";
+    number.textContent = queueDisplayNumber(ticket);
+
+    const details = document.createElement("span");
+    details.className = "queue-list-details";
+
+    const task = document.createElement("strong");
+    task.textContent = ticket.taskName;
+
+    const meta = document.createElement("small");
+    meta.textContent = `${formatQueueListDate(ticket.scheduledDate)} · ${ticket.ticketNo}`;
+
+    const arrow = document.createElement("span");
+    arrow.className = "queue-list-arrow";
+    arrow.setAttribute("aria-hidden", "true");
+    arrow.textContent = "›";
+
+    details.append(task, meta);
+    item.append(number, details, arrow);
+    item.addEventListener("click", () => {
+      queueListDialog.close();
+      openQueueReceipt(ticket);
+    });
+    queueList.appendChild(item);
+  });
+}
+
+async function openQueueListDialog() {
+  renderQueueList();
+  if (!queueListDialog.open) queueListDialog.showModal();
+  await loadQueueTickets({ rerender: false });
+  renderAll();
+  renderQueueList();
+}
+
 function queueBacklogStats(ticket) {
   const targetDate = parseQueueDate(ticket.scheduledDate);
-  if (!targetDate) return { taskCount: 0, scheduledDayCount: 0 };
+  if (!targetDate) return { taskCount: 0, workdayCount: 0 };
 
   const now = new Date();
   const candidate = now.getFullYear() < YEAR
     ? new Date(YEAR, 0, 1, 12, 0, 0, 0)
     : new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0, 0);
   let taskCount = 0;
-  let scheduledDayCount = 0;
+  let workdayCount = 0;
 
   while (candidate < targetDate && candidate.getFullYear() === YEAR) {
     const month = candidate.getMonth() + 1;
     const day = candidate.getDate();
     const plannedCount = getPlannedTasks(month, day).filter((task) => !isHolidayTask(task)).length;
     const queueCount = getQueueTicketsForDay(month, day).length;
-    const dailyCount = plannedCount + queueCount;
-    taskCount += dailyCount;
-    if (dailyCount > 0) scheduledDayCount += 1;
+    taskCount += plannedCount + queueCount;
+    if (isQueueWorkday(candidate)) workdayCount += 1;
     candidate.setDate(candidate.getDate() + 1);
   }
 
-  return { taskCount, scheduledDayCount };
+  return { taskCount, workdayCount };
 }
 
 function openQueueReceipt(ticket) {
@@ -676,15 +760,15 @@ function openQueueReceipt(ticket) {
   const stats = queueBacklogStats(ticket);
   queueReceiptNumber.textContent = queueDisplayNumber(ticket);
   queueReceiptTaskCount.textContent = String(stats.taskCount);
-  queueReceiptDayCount.textContent = String(stats.scheduledDayCount);
+  queueReceiptDayCount.textContent = String(stats.workdayCount);
   queueReceiptDate.textContent = scheduledDate
     ? `${scheduledDate.getMonth() + 1} 月 ${scheduledDate.getDate()} 日`
     : "待安排";
   queueReceiptTask.textContent = `预约项目：${ticket.taskName}`;
-  queueReceiptDelete.hidden = !CAN_EDIT;
-  queueReceiptDelete.disabled = queueRemoteEnabled() && !queueEditorToken();
-  queueReceiptDelete.dataset.ticketId = ticket.id;
-  queueReceiptDelete.title = queueReceiptDelete.disabled ? "本地删除权限尚未配置" : "删除这个取号";
+  queueReceiptCancel.hidden = ticket.status === "cancelled";
+  queueReceiptCancel.disabled = false;
+  queueReceiptCancel.dataset.ticketId = ticket.id;
+  queueReceiptCancel.title = "取消这个排队号";
   if (!queueReceiptDialog.open) queueReceiptDialog.showModal();
 }
 
@@ -750,6 +834,54 @@ async function deleteQueueTicket(ticket) {
   if (!queueRemoteEnabled()) saveLocalQueueTickets();
 }
 
+async function cancelQueueTicket(ticket) {
+  if (!ticket) throw new Error("cancel unavailable");
+
+  if (queueRemoteEnabled()) {
+    const response = await fetch(`${queueApiUrl()}?id=eq.${encodeURIComponent(ticket.id)}&status=eq.scheduled`, {
+      method: "PATCH",
+      headers: queueApiHeaders({
+        "Content-Type": "application/json",
+        Prefer: "return=representation"
+      }),
+      body: JSON.stringify({ status: "cancelled" })
+    });
+    if (!response.ok) throw new Error(`queue cancel failed: ${response.status}`);
+    const rows = await response.json();
+    if (!Array.isArray(rows) || !rows.length) throw new Error("cancel denied");
+  }
+
+  queueTickets = queueTickets.map((item) => (
+    item.id === ticket.id || item.ticketNo === ticket.ticketNo
+      ? { ...item, status: "cancelled" }
+      : item
+  ));
+  if (!queueRemoteEnabled()) saveLocalQueueTickets();
+}
+
+async function confirmAndCancelQueueTicket(ticket, button) {
+  if (!ticket || !window.confirm(`确认取消排队 ${queueDisplayNumber(ticket)}「${ticket.taskName}」吗？`)) return;
+  const previousText = button?.textContent;
+  if (button) {
+    button.disabled = true;
+    button.textContent = "取消中...";
+  }
+  try {
+    await cancelQueueTicket(ticket);
+    if (queueReceiptDialog.open) queueReceiptDialog.close();
+    renderAll();
+    showToast("已取消排队");
+  } catch (error) {
+    console.error(error);
+    showToast("取消失败，请稍后重试");
+  } finally {
+    if (button?.isConnected) {
+      button.disabled = false;
+      button.textContent = previousText;
+    }
+  }
+}
+
 async function confirmAndDeleteQueueTicket(ticket, button) {
   if (!ticket || !window.confirm(`确认删除取号 ${queueDisplayNumber(ticket)}「${ticket.taskName}」吗？`)) return;
   const previousText = button?.textContent;
@@ -809,17 +941,14 @@ async function createQueueTicket(taskName) {
 
 function renderQueueAvailability() {
   if (queueLoading) {
-    queueSlotDate.textContent = "正在计算...";
     queueSubmitButton.disabled = true;
     return;
   }
   if (queueError) {
-    queueSlotDate.textContent = queueError;
     queueSubmitButton.disabled = !CAN_EDIT || !queueRemoteEnabled();
     return;
   }
   const nextDate = findNextAvailableDate();
-  queueSlotDate.textContent = formatQueueDate(nextDate);
   queueSubmitButton.disabled = !nextDate;
 }
 
@@ -1284,6 +1413,7 @@ function renderAll() {
   renderEditor();
   renderProjects();
   renderQueueAvailability();
+  renderQueueList();
 }
 
 function buildSnapshot() {
@@ -1847,12 +1977,14 @@ viewerDialog.addEventListener("click", (event) => {
 });
 
 queueOpenButton.addEventListener("click", openQueueDialog);
+queueListOpenButton.addEventListener("click", openQueueListDialog);
+queueListClose.addEventListener("click", () => queueListDialog.close());
 queueDialogClose.addEventListener("click", () => queueDialog.close());
 queueReceiptClose.addEventListener("click", () => queueReceiptDialog.close());
 queueReceiptDone.addEventListener("click", () => queueReceiptDialog.close());
-queueReceiptDelete.addEventListener("click", () => {
-  const ticket = queueTickets.find((item) => item.id === queueReceiptDelete.dataset.ticketId);
-  confirmAndDeleteQueueTicket(ticket, queueReceiptDelete);
+queueReceiptCancel.addEventListener("click", () => {
+  const ticket = queueTickets.find((item) => item.id === queueReceiptCancel.dataset.ticketId);
+  confirmAndCancelQueueTicket(ticket, queueReceiptCancel);
 });
 
 queueDialog.addEventListener("click", (event) => {
@@ -1863,6 +1995,16 @@ queueDialog.addEventListener("click", (event) => {
     || event.clientY < rect.top
     || event.clientY > rect.bottom;
   if (clickedOutside) queueDialog.close();
+});
+
+queueListDialog.addEventListener("click", (event) => {
+  if (event.target !== queueListDialog) return;
+  const rect = queueListDialog.getBoundingClientRect();
+  const clickedOutside = event.clientX < rect.left
+    || event.clientX > rect.right
+    || event.clientY < rect.top
+    || event.clientY > rect.bottom;
+  if (clickedOutside) queueListDialog.close();
 });
 
 queueReceiptDialog.addEventListener("click", (event) => {

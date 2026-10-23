@@ -513,6 +513,43 @@ body.menu-collapsed .toggle-label {
   padding: 6px 10px;
 }
 
+.queue-list-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 6px 10px;
+  border-color: #c9c5bc;
+  background: transparent;
+  color: #2f2e2a;
+  font-weight: 600;
+}
+
+.queue-list-button:hover {
+  border-color: #777168;
+  background: #ebe6dd;
+  color: #181817;
+}
+
+.queue-list-button strong {
+  display: grid;
+  min-width: 20px;
+  height: 20px;
+  place-items: center;
+  padding: 0 5px;
+  border-radius: 50%;
+  background: #d8d5cd;
+  color: #4f4c46;
+  font-size: 0.7rem;
+  line-height: 1;
+}
+
+.queue-list-button.has-queue strong {
+  background: #181817;
+  color: #f7f5ef;
+}
+
 .calendar-card {
   padding: 12px;
 }
@@ -1040,8 +1077,7 @@ body.batch-mode .day-summary {
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid #d8d5cd;
+  margin-bottom: 24px;
 }
 
 .queue-dialog-kicker {
@@ -1056,26 +1092,6 @@ body.batch-mode .day-summary {
   font-size: 1.5rem;
   font-weight: 400;
   line-height: 1.2;
-}
-
-.queue-slot {
-  display: grid;
-  gap: 4px;
-  margin: 18px 0;
-  padding: 14px 0;
-  border-top: 1px solid #d8d5cd;
-  border-bottom: 1px solid #d8d5cd;
-}
-
-.queue-slot span,
-.queue-slot small {
-  color: #6c6962;
-}
-
-.queue-slot strong {
-  font-family: Georgia, "Songti SC", "STSong", serif;
-  font-size: 1.25rem;
-  font-weight: 400;
 }
 
 .queue-form {
@@ -1128,6 +1144,124 @@ body.batch-mode .day-summary {
   cursor: not-allowed;
 }
 
+.queue-list-dialog {
+  width: min(560px, calc(100vw - 32px));
+  max-height: min(680px, calc(100vh - 32px));
+  margin: auto;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #181817;
+  border-radius: 2px;
+  background: #f7f5ef;
+  color: #181817;
+  box-shadow: 0 10px 0 rgba(24, 24, 23, 0.12);
+}
+
+.queue-list-dialog::backdrop {
+  background: rgba(24, 24, 23, 0.42);
+}
+
+.queue-list-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid #d8d5cd;
+}
+
+.queue-list-header p {
+  margin: 0 0 5px;
+  color: #6c6962;
+  font-size: 0.75rem;
+}
+
+.queue-list-header h2 {
+  margin: 0;
+  font-family: Georgia, "Songti SC", "STSong", serif;
+  font-size: 1.5rem;
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+.queue-list-summary {
+  margin: 0;
+  padding: 12px 20px;
+  border-bottom: 1px solid #d8d5cd;
+  color: #5d5a54;
+  font-size: 0.82rem;
+}
+
+.queue-list {
+  max-height: min(500px, calc(100vh - 190px));
+  overflow-y: auto;
+}
+
+.queue-list-item {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 54px minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 14px;
+  padding: 15px 20px;
+  border: 0;
+  border-bottom: 1px solid #ddd9d1;
+  border-radius: 0;
+  background: transparent;
+  color: #181817;
+  text-align: left;
+}
+
+.queue-list-item:last-child {
+  border-bottom: 0;
+}
+
+.queue-list-item:hover {
+  border-color: #c8c3ba;
+  background: #ece7de;
+}
+
+.queue-list-item:focus-visible {
+  position: relative;
+  outline: 2px solid #181817;
+  outline-offset: -3px;
+}
+
+.queue-list-number {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.35rem;
+  font-weight: 400;
+}
+
+.queue-list-details {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.queue-list-details strong,
+.queue-list-details small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue-list-details strong {
+  font-size: 0.92rem;
+}
+
+.queue-list-details small {
+  color: #6c6962;
+  font-size: 0.75rem;
+}
+
+.queue-list-arrow {
+  color: #6c6962;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.65rem;
+  line-height: 1;
+}
+
 .queue-receipt-dialog {
   width: min(420px, calc(100vw - 32px));
   margin: auto;
@@ -1172,10 +1306,18 @@ body.batch-mode .day-summary {
 }
 
 .queue-receipt-slogan {
-  margin: 22px 0 18px;
+  margin: 22px 0 4px;
   font-family: Georgia, "Songti SC", "STSong", serif;
   font-size: 1.15rem;
   line-height: 1.5;
+}
+
+.queue-receipt-priority {
+  margin: 0 0 16px;
+  color: #6c6962;
+  font-family: Georgia, "Songti SC", "STSong", serif;
+  font-size: 0.82rem;
+  line-height: 1.4;
 }
 
 .queue-receipt-rule {
@@ -1357,6 +1499,10 @@ body.read-only-mode .day-cell.viewable {
     width: 100%;
     justify-content: flex-start;
     flex-wrap: wrap;
+  }
+
+  .queue-list-button {
+    align-self: flex-start;
   }
 }
 
@@ -1548,7 +1694,8 @@ body.style-editorial .topbar-tools {
 }
 
 body.style-editorial .month-controls button,
-body.style-editorial .topbar-tools button {
+body.style-editorial .topbar-tools button,
+body.style-editorial .queue-list-button {
   min-width: 58px;
   min-height: 34px;
   padding: 6px 10px;
@@ -1627,7 +1774,7 @@ body.style-editorial .day-cell.outside {
 body.style-editorial .day-cell.today,
 body.style-editorial .day-cell.today.weekend:not(.outside) {
   background-color: #f6f1e9;
-  background-image: url("./today-card-background.png");
+  background-image: url("./today-card-background-v2.jpg");
   background-repeat: no-repeat;
   background-position: right center;
   background-size: auto 100%;
@@ -1808,6 +1955,11 @@ body.style-editorial .toast {
     width: calc(100vw - 20px);
     max-height: calc(100vh - 20px);
     padding: 14px;
+  }
+
+  .queue-list-dialog {
+    width: calc(100vw - 20px);
+    max-height: calc(100vh - 20px);
   }
 
   body.style-editorial .calendar-grid {

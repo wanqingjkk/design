@@ -7,7 +7,7 @@
     <link rel="icon" href="./favicon.ico" sizes="any" />
     <link rel="icon" href="./favicon-32.png" type="image/png" sizes="32x32" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css?v=20261023" />
   </head>
   <body class="menu-collapsed theme-fresh">
     <div class="app-shell">
@@ -70,6 +70,10 @@
           <div>
             <h2 id="monthTitle">8 月</h2>
           </div>
+          <button class="queue-list-button" type="button" id="queueListOpenButton">
+            <span>排队列表</span>
+            <strong id="queueListCount" aria-label="0 个排队取号">0</strong>
+          </button>
           <div class="month-controls" aria-label="月份切换">
             <button type="button" id="prevMonth">上一月</button>
             <button type="button" id="nextMonth">下一月</button>
@@ -134,8 +138,8 @@
       <div class="viewer-dialog-content">
         <img
           class="viewer-dialog-illustration"
-          src="./today-card-background.png"
-          alt="海边众人牵引红色充气马装置的照片"
+          src="./today-card-background-v2.jpg"
+          alt="一名男子指向镜头，上方写着在做了再催你自己做的图片"
         />
         <div class="viewer-dialog-details">
           <p class="viewer-dialog-summary" id="viewerDialogSummary"></p>
@@ -153,12 +157,6 @@
         <button class="icon-button" id="queueDialogClose" type="button" aria-label="关闭取号弹窗" title="关闭">×</button>
       </div>
 
-      <div class="queue-slot" id="queueSlot" aria-live="polite">
-        <span>预计安排</span>
-        <strong id="queueSlotDate">正在计算...</strong>
-        <small>自动跳过周六、周日、假期和已有项目的日期</small>
-      </div>
-
       <form class="queue-form" id="queueForm">
         <label for="queueTaskInput">任务名称</label>
         <textarea id="queueTaskInput" name="taskName" rows="3" maxlength="120" required></textarea>
@@ -168,22 +166,35 @@
       </form>
     </dialog>
 
+    <dialog class="queue-list-dialog" id="queueListDialog" aria-labelledby="queueListTitle">
+      <div class="queue-list-header">
+        <div>
+          <p>排队取号</p>
+          <h2 id="queueListTitle">排队列表</h2>
+        </div>
+        <button class="icon-button" id="queueListClose" type="button" aria-label="关闭排队列表" title="关闭">×</button>
+      </div>
+      <p class="queue-list-summary" id="queueListSummary" aria-live="polite"></p>
+      <div class="queue-list" id="queueList"></div>
+    </dialog>
+
     <dialog class="queue-receipt-dialog" id="queueReceiptDialog" aria-labelledby="queueReceiptTitle">
       <button class="queue-receipt-close" id="queueReceiptClose" type="button" aria-label="关闭取号纸" title="关闭">×</button>
       <div class="queue-receipt-banner" id="queueReceiptTitle">取单号</div>
       <p class="queue-receipt-slogan">在做了，再催你自己做。</p>
+      <p class="queue-receipt-priority">（官大可插队）</p>
       <div class="queue-receipt-rule" aria-hidden="true"></div>
       <strong class="queue-receipt-number" id="queueReceiptNumber">A1</strong>
       <p class="queue-receipt-success">已成功取号</p>
       <p class="queue-receipt-waiting">您前面还有 <strong id="queueReceiptTaskCount">0</strong> 个任务待处理</p>
       <p class="queue-receipt-estimate">
         请耐心等到 <strong id="queueReceiptDate">待安排</strong><br />
-        （估计等待时间 <strong id="queueReceiptDayCount">0</strong> 天）
+        （估计等待时间 <strong id="queueReceiptDayCount">0</strong> 个工作日）
       </p>
       <div class="queue-receipt-rule" aria-hidden="true"></div>
       <p class="queue-receipt-task" id="queueReceiptTask"></p>
       <div class="queue-receipt-actions">
-        <button class="queue-receipt-delete" id="queueReceiptDelete" type="button" hidden>删除取号</button>
+        <button class="queue-receipt-delete" id="queueReceiptCancel" type="button">取消排队</button>
         <button class="queue-receipt-done" id="queueReceiptDone" type="button">知道了</button>
       </div>
     </dialog>
@@ -192,6 +203,6 @@
 
     <script src="./queue-config.js"></script>
     <script src="./design-calendar-data.js"></script>
-    <script src="./app.js"></script>
+    <script src="./app.js?v=20261023-2"></script>
   </body>
 </html>
