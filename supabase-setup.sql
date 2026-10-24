@@ -3,7 +3,7 @@ create table if not exists public.queue_tickets (
   ticket_no text not null unique check (ticket_no ~ '^Q-[0-9]{4}-[0-9]{2}$'),
   requester text not null check (char_length(requester) between 1 and 40),
   task_name text not null check (char_length(task_name) between 1 and 120),
-  scheduled_date date not null unique,
+  scheduled_date date not null,
   status text not null default 'scheduled' check (status in ('scheduled', 'completed', 'cancelled')),
   created_at timestamptz not null default now()
 );
@@ -56,3 +56,10 @@ using (
 
 create index if not exists queue_tickets_scheduled_date_idx
 on public.queue_tickets (scheduled_date);
+
+alter table public.queue_tickets
+drop constraint if exists queue_tickets_scheduled_date_key;
+
+create unique index if not exists queue_tickets_active_scheduled_date_key
+on public.queue_tickets (scheduled_date)
+where status = 'scheduled';

@@ -778,7 +778,8 @@ function queueEditorToken() {
 
 function nextTicketNumber(date) {
   const prefix = `Q-${padMonth(date.getMonth() + 1)}${String(date.getDate()).padStart(2, "0")}`;
-  const count = getQueueTicketsForDay(date.getMonth() + 1, date.getDate()).length + 1;
+  const dateKey = formatDateKey(date);
+  const count = queueTickets.filter((ticket) => ticket.scheduledDate === dateKey).length + 1;
   return `${prefix}-${String(count).padStart(2, "0")}`;
 }
 
