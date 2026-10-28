@@ -1361,15 +1361,41 @@ body.batch-mode .day-summary {
 
 .queue-receipt-task {
   min-height: 22px;
-  margin: 16px 0;
+  margin: 16px 0 14px;
+  padding: 12px 14px;
   overflow-wrap: anywhere;
-  color: #6c6962;
+  background: #e3e1dc;
+  color: #5f5c56;
   font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.queue-receipt-payment {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  margin: 16px 0 0;
+}
+
+.queue-receipt-payment img {
+  display: block;
+  width: 72px;
+  height: 79px;
+  object-fit: contain;
+  border: 1px solid #aaa49a;
+  background: #fff;
+}
+
+.queue-receipt-payment figcaption {
+  color: #494640;
+  font-size: 0.78rem;
+  line-height: 1.4;
 }
 
 .queue-receipt-actions {
   display: flex;
   gap: 8px;
+  margin-top: 2px;
 }
 
 .queue-receipt-done,
@@ -1409,6 +1435,17 @@ body.read-only-mode .day-cell.viewable {
 }
 
 @media (max-width: 640px) {
+  .queue-receipt-dialog {
+    max-height: calc(100vh - 24px);
+    padding: 22px 20px 18px;
+    overflow-y: auto;
+  }
+
+  .queue-receipt-payment img {
+    width: 64px;
+    height: 70px;
+  }
+
   .viewer-dialog {
     width: calc(100vw - 20px);
     max-height: calc(100vh - 20px);
@@ -1774,7 +1811,7 @@ body.style-editorial .day-cell.outside {
 body.style-editorial .day-cell.today,
 body.style-editorial .day-cell.today.weekend:not(.outside) {
   background-color: #f6f1e9;
-  background-image: url("./today-card-background-v2.jpg");
+  background-image: url("./today-card-background-v2.png");
   background-repeat: no-repeat;
   background-position: right center;
   background-size: auto 100%;

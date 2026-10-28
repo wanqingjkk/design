@@ -7,7 +7,7 @@
     <link rel="icon" href="./favicon.ico" sizes="any" />
     <link rel="icon" href="./favicon-32.png" type="image/png" sizes="32x32" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
-    <link rel="stylesheet" href="./styles.css?v=20261023" />
+    <link rel="stylesheet" href="./styles.css?v=20261028-4" />
   </head>
   <body class="menu-collapsed theme-fresh">
     <div class="app-shell">
@@ -138,7 +138,7 @@
       <div class="viewer-dialog-content">
         <img
           class="viewer-dialog-illustration"
-          src="./today-card-background-v2.jpg"
+          src="./today-card-background-v2.png"
           alt="一名男子指向镜头，上方写着在做了再催你自己做的图片"
         />
         <div class="viewer-dialog-details">
@@ -191,18 +191,21 @@
         请耐心等到 <strong id="queueReceiptDate">待安排</strong><br />
         （估计等待时间 <strong id="queueReceiptDayCount">0</strong> 个工作日）
       </p>
-      <div class="queue-receipt-rule" aria-hidden="true"></div>
       <p class="queue-receipt-task" id="queueReceiptTask"></p>
       <div class="queue-receipt-actions">
         <button class="queue-receipt-delete" id="queueReceiptCancel" type="button">取消排队</button>
         <button class="queue-receipt-done" id="queueReceiptDone" type="button">知道了</button>
       </div>
+      <figure class="queue-receipt-payment">
+        <img src="./payment-qr.png" alt="扫码请咖啡的付款二维码" />
+        <figcaption>扫码请咖啡或者能加速</figcaption>
+      </figure>
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
     <script src="./queue-config.js"></script>
-    <script src="./design-calendar-data.js?v=20261027-1"></script>
+    <script src="./design-calendar-data.js?v=20261028-1"></script>
     <script src="./app.js?v=20261023-3"></script>
   </body>
 </html>
