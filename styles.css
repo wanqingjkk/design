@@ -1003,6 +1003,14 @@ body.batch-mode .day-summary {
   background: #ffffff;
 }
 
+.viewer-dialog-illustration[hidden] {
+  display: none;
+}
+
+.viewer-dialog.without-illustration .viewer-dialog-content {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .viewer-dialog-details {
   order: 1;
   min-width: 0;

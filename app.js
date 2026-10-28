@@ -218,6 +218,7 @@ const viewerDialog = document.getElementById("viewerDialog");
 const viewerDialogTitle = document.getElementById("viewerDialogTitle");
 const viewerDialogSummary = document.getElementById("viewerDialogSummary");
 const viewerDialogList = document.getElementById("viewerDialogList");
+const viewerDialogIllustration = document.getElementById("viewerDialogIllustration");
 const viewerDialogClose = document.getElementById("viewerDialogClose");
 const queueOpenButton = document.getElementById("queueOpenButton");
 const queueListOpenButton = document.getElementById("queueListOpenButton");
@@ -1096,6 +1097,12 @@ function createTaskChip(item) {
 
 function openViewerDialog(month, day) {
   const items = getCalendarItems(month, day);
+  const today = new Date();
+  const isToday = today.getFullYear() === YEAR
+    && today.getMonth() + 1 === month
+    && today.getDate() === day;
+  viewerDialog.classList.toggle("without-illustration", !isToday);
+  viewerDialogIllustration.hidden = !isToday;
   viewerDialogTitle.textContent = `${YEAR} 年 ${month} 月 ${day} 日`;
   viewerDialogSummary.textContent = items.length ? `当天共有 ${items.length} 项任务` : "当天暂无任务";
   viewerDialogList.innerHTML = "";
