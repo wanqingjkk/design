@@ -1271,6 +1271,7 @@ body.batch-mode .day-summary {
 }
 
 .queue-receipt-dialog {
+  --queue-receipt-scale: 0.7619047619;
   width: min(420px, calc(100vw - 32px));
   margin: auto;
   padding: 28px 30px 24px;
@@ -1282,6 +1283,8 @@ body.batch-mode .day-summary {
   color: #181817;
   text-align: center;
   box-shadow: 0 18px 40px rgba(24, 24, 23, 0.24);
+  transform: scale(var(--queue-receipt-scale));
+  transform-origin: center;
 }
 
 .queue-receipt-dialog::backdrop {
@@ -1290,8 +1293,9 @@ body.batch-mode .day-summary {
 
 .queue-receipt-close {
   position: absolute;
-  top: -12px;
-  right: -12px;
+  z-index: 1;
+  top: 10px;
+  right: 10px;
   width: 34px;
   height: 34px;
   padding: 0;
@@ -1304,6 +1308,7 @@ body.batch-mode .day-summary {
 }
 
 .queue-receipt-banner {
+  margin-top: 18px;
   padding: 11px 14px;
   border: 1px solid #494640;
   background: #494640;
@@ -1444,6 +1449,7 @@ body.read-only-mode .day-cell.viewable {
 
 @media (max-width: 640px) {
   .queue-receipt-dialog {
+    --queue-receipt-scale: 1;
     max-height: calc(100vh - 24px);
     padding: 22px 20px 18px;
     overflow-y: auto;
