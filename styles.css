@@ -1271,7 +1271,7 @@ body.batch-mode .day-summary {
 }
 
 .queue-receipt-dialog {
-  --queue-receipt-scale: 0.7619047619;
+  --queue-receipt-scale: 0.9523809524;
   width: min(420px, calc(100vw - 32px));
   margin: auto;
   padding: 28px 30px 24px;

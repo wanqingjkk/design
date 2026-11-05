@@ -11,9 +11,7 @@ const QUEUE_CONFIG = window.__DESIGN_CALENDAR_QUEUE_CONFIG__ || {};
 const QUEUE_ADMIN_CONFIG = window.__DESIGN_CALENDAR_QUEUE_ADMIN_CONFIG__ || {};
 const QUEUE_COLOR = "#eadfce";
 const CAN_EDIT = false;
-const IS_EDITORIAL_PREVIEW = true;
-
-document.body.classList.toggle("style-editorial", IS_EDITORIAL_PREVIEW);
+document.body.classList.add("style-editorial");
 
 const monthNames = [
   "1 月", "2 月", "3 月", "4 月", "5 月", "6 月",
@@ -1366,7 +1364,6 @@ function removeProject(index) {
 function renderThemes() {
   const activeTheme = DEFAULT_THEME;
   document.body.classList.remove("theme-fresh", "theme-warm");
-  document.body.classList.add(`theme-${activeTheme}`);
   localStorage.setItem(THEME_KEY, activeTheme);
 }
 
