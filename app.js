@@ -1,5 +1,5 @@
 const YEAR = 2026;
-const STORAGE_KEY = "design-calendar-2026-v3";
+const STORAGE_KEY = "design-calendar-2026-v4";
 const THEME_KEY = "design-calendar-theme-v2";
 const MENU_KEY = "design-calendar-menu-v2";
 const VIEW_KEY = "design-calendar-view-v1";
@@ -10,6 +10,10 @@ const QUEUE_LOCAL_KEY = "design-calendar-queue-v1";
 const QUEUE_CONFIG = window.__DESIGN_CALENDAR_QUEUE_CONFIG__ || {};
 const QUEUE_ADMIN_CONFIG = window.__DESIGN_CALENDAR_QUEUE_ADMIN_CONFIG__ || {};
 const QUEUE_COLOR = "#eadfce";
+const DEFAULT_TODAY_IMAGE = "./today-card-background-v2.png";
+const DEFAULT_DAY_IMAGE_DATE = "2026-11-13";
+const MAX_DAY_IMAGE_FILE_SIZE = 12 * 1024 * 1024;
+const MAX_DAY_IMAGE_STORED_SIZE = 320 * 1024;
 const CAN_EDIT = false;
 document.body.classList.add("style-editorial");
 
@@ -218,6 +222,13 @@ const viewerDialogSummary = document.getElementById("viewerDialogSummary");
 const viewerDialogList = document.getElementById("viewerDialogList");
 const viewerDialogIllustration = document.getElementById("viewerDialogIllustration");
 const viewerDialogClose = document.getElementById("viewerDialogClose");
+const dayImageEditor = document.getElementById("dayImageEditor");
+const dayImagePreview = document.getElementById("dayImagePreview");
+const dayImagePreviewImage = document.getElementById("dayImagePreviewImage");
+const dayImageStatus = document.getElementById("dayImageStatus");
+const dayImageInput = document.getElementById("dayImageInput");
+const dayImageUploadButton = document.getElementById("dayImageUploadButton");
+const dayImageRemoveButton = document.getElementById("dayImageRemoveButton");
 const queueOpenButton = document.getElementById("queueOpenButton");
 const queueListOpenButton = document.getElementById("queueListOpenButton");
 const queueListCount = document.getElementById("queueListCount");
@@ -247,6 +258,7 @@ function loadState() {
     try {
       const parsed = JSON.parse(saved);
       if (parsed && parsed.plans && parsed.projects) {
+        parsed.dayImages = normalizeDayImages(parsed.dayImages);
         if (parsed.paletteVersion !== PALETTE_VERSION) {
           parsed.projects = normalizeProjectColors(parsed.projects);
           parsed.paletteVersion = PALETTE_VERSION;
@@ -260,6 +272,7 @@ function loadState() {
 
   if (embeddedSnapshot?.data?.plans && embeddedSnapshot.data.projects) {
     const seeded = structuredClone(embeddedSnapshot.data);
+    seeded.dayImages = normalizeDayImages(seeded.dayImages);
     if (seeded.paletteVersion !== PALETTE_VERSION) {
       seeded.projects = normalizeProjectColors(seeded.projects);
       seeded.paletteVersion = PALETTE_VERSION;
@@ -270,7 +283,8 @@ function loadState() {
   return {
     paletteVersion: PALETTE_VERSION,
     plans: structuredClone(initialPlans),
-    projects: normalizeProjectColors(initialProjects.map(([name, color]) => ({ name, color })))
+    projects: normalizeProjectColors(initialProjects.map(([name, color]) => ({ name, color }))),
+    dayImages: {}
   };
 }
 
@@ -376,6 +390,25 @@ function normalizeProjectColors(projects) {
   }));
 }
 
+function normalizeDayImages(dayImages) {
+  if (!dayImages || typeof dayImages !== "object" || Array.isArray(dayImages)) return {};
+  const normalized = {};
+  Object.entries(dayImages).forEach(([monthKey, days]) => {
+    const month = Number(monthKey);
+    if (!Number.isInteger(month) || month < 1 || month > 12 || !days || typeof days !== "object" || Array.isArray(days)) return;
+    const cleanDays = {};
+    Object.entries(days).forEach(([dayKey, value]) => {
+      const day = Number(dayKey);
+      if (!Number.isInteger(day) || day < 1 || day > daysInMonth(month)) return;
+      if (value === null || (typeof value === "string" && (value.startsWith("data:image/") || value.startsWith("./")))) {
+        cleanDays[String(day)] = value;
+      }
+    });
+    if (Object.keys(cleanDays).length) normalized[padMonth(month)] = cleanDays;
+  });
+  return normalized;
+}
+
 function saveState() {
   if (!CAN_EDIT) return;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -393,6 +426,40 @@ function getMonthData(month) {
 
 function getPlannedTasks(month, day) {
   return getMonthData(month)[String(day)] || [];
+}
+
+function getStoredDayImage(month, day) {
+  const monthImages = state.dayImages?.[padMonth(month)];
+  if (!monthImages || !Object.prototype.hasOwnProperty.call(monthImages, String(day))) {
+    return { exists: false, value: undefined };
+  }
+  return { exists: true, value: monthImages[String(day)] };
+}
+
+function getDayImage(month, day) {
+  const stored = getStoredDayImage(month, day);
+  if (stored.exists) return typeof stored.value === "string" ? stored.value : "";
+  return queueDateKey(month, day) === DEFAULT_DAY_IMAGE_DATE ? DEFAULT_TODAY_IMAGE : "";
+}
+
+function setDayImage(month, day, value) {
+  if (!CAN_EDIT) return;
+  const monthKey = padMonth(month);
+  const dayKey = String(day);
+  if (!state.dayImages) state.dayImages = {};
+  if (!state.dayImages[monthKey]) state.dayImages[monthKey] = {};
+  const monthImages = state.dayImages[monthKey];
+  const hadPrevious = Object.prototype.hasOwnProperty.call(monthImages, dayKey);
+  const previous = monthImages[dayKey];
+  monthImages[dayKey] = value;
+  try {
+    saveState();
+  } catch (error) {
+    if (hadPrevious) monthImages[dayKey] = previous;
+    else delete monthImages[dayKey];
+    if (!Object.keys(monthImages).length) delete state.dayImages[monthKey];
+    throw error;
+  }
 }
 
 function formatDateKey(date) {
@@ -992,6 +1059,7 @@ function renderCalendar() {
     const isWeekend = index % 7 >= 5;
     const isActive = selected.month === cell.month && selected.day === cell.day;
     const isSelected = batchActive && cell.month === currentMonth && activeSelectedDays.includes(cell.day);
+    const dayImage = getDayImage(cell.month, cell.day);
     const isToday = !cell.outside
       && today.getFullYear() === YEAR
       && today.getMonth() + 1 === cell.month
@@ -1002,6 +1070,7 @@ function renderCalendar() {
       cell.outside ? "outside" : "",
       isWeekend ? "weekend" : "",
       isToday ? "today" : "",
+      dayImage ? "has-image" : "",
       isActive ? "active" : "",
       isSelected ? "selected" : ""
     ].filter(Boolean).join(" ");
@@ -1009,10 +1078,13 @@ function renderCalendar() {
     if (isToday) {
       button.setAttribute("aria-current", "date");
     }
-    if (!CAN_EDIT && items.length) {
+    if (dayImage) {
+      button.style.setProperty("--day-image", `url("${dayImage.replace(/"/g, "%22")}")`);
+    }
+    if (!CAN_EDIT && (items.length || dayImage)) {
       button.classList.add("viewable");
       button.title = "查看当天任务";
-      button.setAttribute("aria-label", `${cell.month}月${cell.day}日，${items.length} 个任务，点击查看`);
+      button.setAttribute("aria-label", `${cell.month}月${cell.day}日，${items.length} 个任务${dayImage ? "，含配图" : ""}，点击查看`);
     }
 
     const number = document.createElement("div");
@@ -1043,7 +1115,7 @@ function renderCalendar() {
         }
       }
       if (!CAN_EDIT) {
-        if (items.length) openViewerDialog(cell.month, cell.day);
+        if (items.length || dayImage) openViewerDialog(cell.month, cell.day);
         return;
       }
       if (CAN_EDIT && batchMode) {
@@ -1083,9 +1155,10 @@ function createTaskChip(item) {
   const chip = document.createElement("div");
   chip.className = `task-chip${item.type === "queue" ? " queue-ticket-chip" : ""}`;
   chip.style.setProperty("--chip-color", item.color);
+  chip.title = item.label;
   if (item.type === "queue") {
     chip.dataset.ticketId = item.ticket.id;
-    chip.title = "点击查看取号纸";
+    chip.title = `${item.label} · 点击查看取号纸`;
   }
   const text = document.createElement("span");
   text.textContent = item.label;
@@ -1095,12 +1168,15 @@ function createTaskChip(item) {
 
 function openViewerDialog(month, day) {
   const items = getCalendarItems(month, day);
-  const today = new Date();
-  const isToday = today.getFullYear() === YEAR
-    && today.getMonth() + 1 === month
-    && today.getDate() === day;
-  viewerDialog.classList.toggle("without-illustration", !isToday);
-  viewerDialogIllustration.hidden = !isToday;
+  const dayImage = getDayImage(month, day);
+  viewerDialog.classList.toggle("without-illustration", !dayImage);
+  viewerDialogIllustration.hidden = !dayImage;
+  if (dayImage) {
+    viewerDialogIllustration.src = dayImage;
+    viewerDialogIllustration.alt = `${YEAR}年${month}月${day}日配图`;
+  } else {
+    viewerDialogIllustration.removeAttribute("src");
+  }
   viewerDialogTitle.textContent = `${YEAR} 年 ${month} 月 ${day} 日`;
   viewerDialogSummary.textContent = items.length ? `当天共有 ${items.length} 项任务` : "当天暂无任务";
   viewerDialogList.innerHTML = "";
@@ -1152,6 +1228,7 @@ function renderEditor() {
     ? `已选 ${activeSelectedDays.length} 天`
     : (totalItems ? `当天已有 ${totalItems} 项任务。` : CAN_EDIT ? "这一天还没有任务，可以直接添加。" : "这一天暂无任务。");
   taskList.innerHTML = "";
+  renderDayImageEditor(batchActive);
 
   if (!totalItems) {
     const empty = document.createElement("div");
@@ -1227,6 +1304,32 @@ function renderEditor() {
     row.append(open, remove);
     taskList.appendChild(row);
   });
+}
+
+function renderDayImageEditor(batchActive) {
+  dayImageEditor.hidden = !CAN_EDIT;
+  if (!CAN_EDIT) return;
+
+  const dayImage = batchActive ? "" : getDayImage(selected.month, selected.day);
+  const stored = batchActive ? { exists: false, value: undefined } : getStoredDayImage(selected.month, selected.day);
+  dayImageEditor.classList.toggle("without-image", !dayImage);
+  dayImagePreview.hidden = !dayImage;
+  dayImageUploadButton.disabled = batchActive;
+  dayImageRemoveButton.disabled = batchActive;
+  dayImageRemoveButton.hidden = !dayImage || batchActive;
+
+  if (dayImage) {
+    dayImagePreviewImage.src = dayImage;
+    dayImagePreviewImage.alt = `${selected.month}月${selected.day}日配图预览`;
+    dayImageUploadButton.textContent = "更换图片";
+    dayImageStatus.textContent = stored.exists ? "已保存到这个日期，导出数据时会一起带上。" : "当前使用默认配图，上传后会替换。";
+  } else {
+    dayImagePreviewImage.removeAttribute("src");
+    dayImageUploadButton.textContent = "上传图片";
+    dayImageStatus.textContent = batchActive
+      ? "多选日期时不能设置配图，请先选择单独一天。"
+      : "支持 JPG、PNG、WebP，将自动压缩保存。";
+  }
 }
 
 function renderProjects() {
@@ -1489,6 +1592,75 @@ function canvasToBlob(canvas, type = "image/png") {
     }
     resolve(null);
   });
+}
+
+function loadImageFromFile(file) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    const url = URL.createObjectURL(file);
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("无法读取这张图片"));
+    };
+    image.src = url;
+  });
+}
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("无法保存这张图片"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function renderCompressedImage(image, width, height, quality) {
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d", { alpha: false });
+  context.fillStyle = "#f7f5ef";
+  context.fillRect(0, 0, width, height);
+  context.drawImage(image, 0, 0, width, height);
+  return new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+}
+
+async function compressDayImage(file) {
+  if (!/^image\/(jpeg|png|webp)$/i.test(file.type)) {
+    throw new Error("请选择 JPG、PNG 或 WebP 图片");
+  }
+  if (file.size > MAX_DAY_IMAGE_FILE_SIZE) {
+    throw new Error("图片不能超过 12MB");
+  }
+
+  const image = await loadImageFromFile(file);
+  const maxDimension = 1100;
+  const initialScale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight));
+  let width = Math.max(1, Math.round(image.naturalWidth * initialScale));
+  let height = Math.max(1, Math.round(image.naturalHeight * initialScale));
+  let quality = 0.86;
+  let blob = null;
+
+  for (let attempt = 0; attempt < 7; attempt += 1) {
+    blob = await renderCompressedImage(image, width, height, quality);
+    if (!blob) throw new Error("图片处理失败，请换一张再试");
+    if (blob.size <= MAX_DAY_IMAGE_STORED_SIZE) break;
+    if (quality > 0.62) quality -= 0.08;
+    else {
+      width = Math.max(480, Math.round(width * 0.82));
+      height = Math.max(360, Math.round(height * 0.82));
+    }
+  }
+
+  if (!blob || blob.size > MAX_DAY_IMAGE_STORED_SIZE * 1.2) {
+    throw new Error("图片仍然太大，请换一张尺寸更小的图片");
+  }
+  return blobToDataUrl(blob);
 }
 
 function downloadBlob(blob, filename) {
@@ -1934,6 +2106,43 @@ taskForm.addEventListener("submit", (event) => {
   showToast(multiSelect && targetDays.length > 1 ? "已批量添加" : "已添加");
 });
 
+dayImageUploadButton.addEventListener("click", () => {
+  if (!CAN_EDIT || dayImageUploadButton.disabled) return;
+  dayImageInput.click();
+});
+
+dayImageInput.addEventListener("change", async (event) => {
+  if (!CAN_EDIT) return;
+  const file = event.target.files?.[0];
+  if (!file) return;
+  dayImageUploadButton.disabled = true;
+  dayImageStatus.textContent = "正在压缩并保存图片…";
+  try {
+    const imageData = await compressDayImage(file);
+    setDayImage(selected.month, selected.day, imageData);
+    renderAll();
+    showToast("配图已保存");
+  } catch (error) {
+    console.error(error);
+    dayImageStatus.textContent = error.message || "图片保存失败";
+    dayImageUploadButton.disabled = false;
+  } finally {
+    event.target.value = "";
+  }
+});
+
+dayImageRemoveButton.addEventListener("click", () => {
+  if (!CAN_EDIT || dayImageRemoveButton.disabled) return;
+  try {
+    setDayImage(selected.month, selected.day, null);
+    renderAll();
+    showToast("配图已移除");
+  } catch (error) {
+    console.error(error);
+    dayImageStatus.textContent = "移除失败，请先导出数据备份后再试";
+  }
+});
+
 projectForm.addEventListener("submit", (event) => {
   event.preventDefault();
   if (!CAN_EDIT) return;
@@ -2198,6 +2407,7 @@ document.getElementById("importInput").addEventListener("change", async (event) 
     if (!payload.plans || !payload.projects) throw new Error("Invalid data");
     state.plans = payload.plans;
     state.projects = payload.projects;
+    state.dayImages = normalizeDayImages(payload.dayImages);
     if (payload.paletteVersion !== PALETTE_VERSION) {
       state.projects = normalizeProjectColors(state.projects);
       state.paletteVersion = PALETTE_VERSION;
