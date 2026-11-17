@@ -851,16 +851,19 @@ body.editor-collapsed .editor-header {
 .task-list {
   display: flex;
   flex-direction: column;
+  flex: 0 0 auto;
   gap: 8px;
   order: 2;
   min-height: 0;
-  max-height: 112px;
-  overflow: auto;
+  max-height: 128px;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .task-row {
   display: grid;
-  grid-template-columns: 8px minmax(0, 1fr) 34px;
+  grid-template-columns: 8px minmax(0, 1fr) 48px;
+  flex: 0 0 38px;
   align-items: center;
   gap: 8px;
   min-height: 38px;
@@ -907,6 +910,19 @@ body.read-only-mode .task-row {
 .task-row button:hover {
   color: var(--text);
   background: var(--surface-soft);
+}
+
+.task-row .task-delete-button {
+  width: auto;
+  min-width: 42px;
+  padding: 0 6px;
+  color: #733b34;
+  font-size: 0.72rem;
+}
+
+.task-row .task-delete-button:hover {
+  background: #f1ded8;
+  color: #5f2f29;
 }
 
 .task-row.queue-ticket-row {
@@ -2075,6 +2091,10 @@ body.style-editorial .editor-actions button {
   border-radius: 0;
   background: transparent;
   box-shadow: none;
+}
+
+body.style-editorial .task-row {
+  border-bottom: 1px solid var(--line);
 }
 
 body.style-editorial .toast {

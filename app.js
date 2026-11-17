@@ -1,5 +1,5 @@
 const YEAR = 2026;
-const STORAGE_KEY = "design-calendar-2026-v4";
+const STORAGE_KEY = "design-calendar-2026-v7";
 const THEME_KEY = "design-calendar-theme-v2";
 const MENU_KEY = "design-calendar-menu-v2";
 const VIEW_KEY = "design-calendar-view-v1";
@@ -14,7 +14,7 @@ const DEFAULT_TODAY_IMAGE = "./today-card-background-v2.png";
 const DEFAULT_DAY_IMAGE_DATE = "2026-11-13";
 const MAX_DAY_IMAGE_FILE_SIZE = 12 * 1024 * 1024;
 const MAX_DAY_IMAGE_STORED_SIZE = 320 * 1024;
-const CAN_EDIT = false;
+const CAN_EDIT = isLocalEditMode();
 document.body.classList.add("style-editorial");
 
 const monthNames = [
@@ -258,11 +258,13 @@ function loadState() {
     try {
       const parsed = JSON.parse(saved);
       if (parsed && parsed.plans && parsed.projects) {
+        parsed.plans = normalizePlans(parsed.plans);
         parsed.dayImages = normalizeDayImages(parsed.dayImages);
         if (parsed.paletteVersion !== PALETTE_VERSION) {
           parsed.projects = normalizeProjectColors(parsed.projects);
           parsed.paletteVersion = PALETTE_VERSION;
         }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
         return parsed;
       }
     } catch (error) {
@@ -272,6 +274,7 @@ function loadState() {
 
   if (embeddedSnapshot?.data?.plans && embeddedSnapshot.data.projects) {
     const seeded = structuredClone(embeddedSnapshot.data);
+    seeded.plans = normalizePlans(seeded.plans);
     seeded.dayImages = normalizeDayImages(seeded.dayImages);
     if (seeded.paletteVersion !== PALETTE_VERSION) {
       seeded.projects = normalizeProjectColors(seeded.projects);
@@ -409,6 +412,27 @@ function normalizeDayImages(dayImages) {
   return normalized;
 }
 
+function normalizePlans(plans) {
+  const normalized = {};
+  Object.entries(plans || {}).forEach(([monthKey, days]) => {
+    const month = Number(monthKey);
+    if (!Number.isInteger(month) || month < 1 || month > 12 || !days || typeof days !== "object" || Array.isArray(days)) return;
+    const cleanDays = {};
+    Object.entries(days).forEach(([dayKey, tasks]) => {
+      const day = Number(dayKey);
+      if (!Number.isInteger(day) || day < 1 || day > daysInMonth(month) || !Array.isArray(tasks)) return;
+      const cleanTasks = [...new Set(tasks.map((task) => String(task).trim()).filter(Boolean))];
+      if (cleanTasks.length) cleanDays[String(day)] = cleanTasks;
+    });
+    normalized[padMonth(month)] = cleanDays;
+  });
+  for (let month = 1; month <= 12; month += 1) {
+    const monthKey = padMonth(month);
+    if (!normalized[monthKey]) normalized[monthKey] = {};
+  }
+  return normalized;
+}
+
 function saveState() {
   if (!CAN_EDIT) return;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -512,7 +536,7 @@ function getDisplayTasks(month, day) {
 function setTasks(month, day, tasks) {
   if (!CAN_EDIT) return;
   const monthData = getMonthData(month);
-  const cleanTasks = tasks.map((task) => task.trim()).filter(Boolean);
+  const cleanTasks = [...new Set(tasks.map((task) => task.trim()).filter(Boolean))];
   if (cleanTasks.length) {
     monthData[String(day)] = cleanTasks;
   } else {
@@ -1260,7 +1284,9 @@ function renderEditor() {
 
     const remove = document.createElement("button");
     remove.type = "button";
-    remove.textContent = "×";
+    remove.className = "task-delete-button";
+    remove.textContent = "删除";
+    remove.setAttribute("aria-label", `删除任务：${task}`);
     remove.title = "删除任务";
     remove.addEventListener("click", () => {
       const next = tasks.filter((_, taskIndex) => taskIndex !== index);
