@@ -1,5 +1,5 @@
 const YEAR = 2026;
-const STORAGE_KEY = "design-calendar-2026-v8";
+const STORAGE_KEY = "design-calendar-2026-v9";
 const THEME_KEY = "design-calendar-theme-v2";
 const MENU_KEY = "design-calendar-menu-v2";
 const VIEW_KEY = "design-calendar-view-v1";
