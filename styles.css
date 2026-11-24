@@ -1476,6 +1476,14 @@ body.batch-mode .day-summary {
   line-height: 1.5;
 }
 
+.queue-receipt-task p {
+  margin: 0;
+}
+
+.queue-receipt-task p + p {
+  margin-top: 3px;
+}
+
 .queue-receipt-payment {
   display: grid;
   justify-items: center;

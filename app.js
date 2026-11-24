@@ -239,6 +239,7 @@ const queueList = document.getElementById("queueList");
 const queueDialog = document.getElementById("queueDialog");
 const queueDialogClose = document.getElementById("queueDialogClose");
 const queueForm = document.getElementById("queueForm");
+const queueRequesterInput = document.getElementById("queueRequesterInput");
 const queueTaskInput = document.getElementById("queueTaskInput");
 const queueSubmitButton = document.getElementById("queueSubmitButton");
 const queueFormStatus = document.getElementById("queueFormStatus");
@@ -250,6 +251,7 @@ const queueReceiptNumber = document.getElementById("queueReceiptNumber");
 const queueReceiptTaskCount = document.getElementById("queueReceiptTaskCount");
 const queueReceiptDayCount = document.getElementById("queueReceiptDayCount");
 const queueReceiptDate = document.getElementById("queueReceiptDate");
+const queueReceiptRequester = document.getElementById("queueReceiptRequester");
 const queueReceiptTask = document.getElementById("queueReceiptTask");
 
 function loadState() {
@@ -498,6 +500,7 @@ function normalizeQueueTicket(ticket) {
   return {
     id: String(ticket.id || ""),
     ticketNo: String(ticket.ticket_no || ticket.ticketNo || ""),
+    requester: String(ticket.requester || "访客"),
     taskName: String(ticket.task_name || ticket.taskName || ""),
     scheduledDate: String(ticket.scheduled_date || ticket.scheduledDate || ""),
     status: String(ticket.status || "scheduled"),
@@ -667,7 +670,7 @@ async function loadQueueTickets({ rerender = true } = {}) {
 
   try {
     if (queueRemoteEnabled()) {
-      const url = `${queueApiUrl()}?select=id,ticket_no,task_name,scheduled_date,status,created_at&order=scheduled_date.asc,created_at.asc`;
+      const url = `${queueApiUrl()}?select=id,ticket_no,requester,task_name,scheduled_date,status,created_at&order=scheduled_date.asc,created_at.asc`;
       const response = await fetch(url, {
         headers: queueApiHeaders(),
         cache: "no-store"
@@ -796,7 +799,7 @@ function renderQueueList() {
     task.textContent = ticket.taskName;
 
     const meta = document.createElement("small");
-    meta.textContent = `${formatQueueListDate(ticket.scheduledDate)} · ${ticket.ticketNo}`;
+    meta.textContent = `${ticket.requester} · ${formatQueueListDate(ticket.scheduledDate)} · ${ticket.ticketNo}`;
 
     const arrow = document.createElement("span");
     arrow.className = "queue-list-arrow";
@@ -854,6 +857,7 @@ function openQueueReceipt(ticket) {
   queueReceiptDate.textContent = scheduledDate
     ? `${scheduledDate.getMonth() + 1} 月 ${scheduledDate.getDate()} 日`
     : "待安排";
+  queueReceiptRequester.textContent = `预约人：${ticket.requester}`;
   queueReceiptTask.textContent = `预约项目：${ticket.taskName}`;
   queueReceiptCancel.hidden = ticket.status === "cancelled";
   queueReceiptCancel.disabled = false;
@@ -873,10 +877,10 @@ function nextTicketNumber(date) {
   return `${prefix}-${String(count).padStart(2, "0")}`;
 }
 
-function buildQueuePayload(taskName, date) {
+function buildQueuePayload(requester, taskName, date) {
   return {
     ticket_no: nextTicketNumber(date),
-    requester: "访客",
+    requester,
     task_name: taskName,
     scheduled_date: formatDateKey(date),
     status: "scheduled"
@@ -996,15 +1000,16 @@ async function confirmAndDeleteQueueTicket(ticket, button) {
   }
 }
 
-async function createQueueTicket(taskName) {
+async function createQueueTicket(requester, taskName) {
+  const cleanRequester = requester.trim();
   const cleanTaskName = taskName.trim();
-  if (!cleanTaskName) throw new Error("missing fields");
+  if (!cleanRequester || !cleanTaskName) throw new Error("missing fields");
   if (!queueRemoteEnabled() && !CAN_EDIT) throw new Error("queue unavailable");
 
   for (let attempt = 0; attempt < 4; attempt += 1) {
     const date = findNextAvailableDate();
     if (!date) throw new Error("no available date");
-    const payload = buildQueuePayload(cleanTaskName, date);
+    const payload = buildQueuePayload(cleanRequester, cleanTaskName, date);
 
     if (!queueRemoteEnabled()) {
       const localTicket = normalizeQueueTicket({
@@ -1047,7 +1052,7 @@ function openQueueDialog() {
   queueFormStatus.textContent = "";
   renderQueueAvailability();
   if (!queueDialog.open) queueDialog.showModal();
-  queueTaskInput.focus();
+  queueRequesterInput.focus();
 }
 
 function renderMonths() {
@@ -2259,9 +2264,16 @@ queueReceiptDialog.addEventListener("click", (event) => {
 
 queueForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  const requester = queueRequesterInput.value.trim();
   const taskName = queueTaskInput.value.trim();
+  if (!requester) {
+    queueFormStatus.textContent = "请填写预约人";
+    queueRequesterInput.focus();
+    return;
+  }
   if (!taskName) {
     queueFormStatus.textContent = "请填写任务名称";
+    queueTaskInput.focus();
     return;
   }
 
@@ -2270,7 +2282,7 @@ queueForm.addEventListener("submit", async (event) => {
   queueFormStatus.textContent = "正在确认最近的空闲日期";
 
   try {
-    const ticket = await createQueueTicket(taskName);
+    const ticket = await createQueueTicket(requester, taskName);
     const [, month, day] = ticket.scheduledDate.split("-").map(Number);
     currentMonth = month;
     selected = { month, day };
